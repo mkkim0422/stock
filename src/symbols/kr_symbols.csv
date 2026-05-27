@@ -1,105 +1,97 @@
 symbol,name,name_kr,sector
 005930,Samsung Electronics,삼성전자,반도체
 000660,SK Hynix,SK하이닉스,반도체
-035720,Kakao,카카오,IT서비스
-035420,NAVER,네이버,IT서비스
+373220,LG Energy Solution,LG에너지솔루션,2차전지
+207940,Samsung Biologics,삼성바이오로직스,제약/바이오
+005935,Samsung Electronics Pref,삼성전자우,반도체
 005380,Hyundai Motor,현대차,자동차
+005490,POSCO Holdings,POSCO홀딩스,철강
 000270,Kia,기아,자동차
+068270,Celltrion,셀트리온,제약/바이오
+035420,NAVER,네이버,IT서비스
+035720,Kakao,카카오,IT서비스
+028260,Samsung C&T,삼성물산,상사
+105560,KB Financial,KB금융,금융
+055550,Shinhan,신한지주,금융
+012330,Hyundai Mobis,현대모비스,자동차부품
+003670,POSCO Future M,포스코퓨처엠,2차전지소재
 051910,LG Chem,LG화학,화학
 006400,Samsung SDI,삼성SDI,2차전지
-207940,Samsung Biologics,삼성바이오로직스,제약/바이오
-068270,Celltrion,셀트리온,제약/바이오
-055550,Shinhan,신한지주,금융
-105560,KB Financial,KB금융,금융
-086790,Hana Financial,하나금융,금융
-316140,Woori Financial,우리금융,금융
-003550,LG,LG,지주사
+086790,Hana Financial,하나금융지주,금융
+015760,KEPCO,한국전력공사,유틸리티
+011200,HMM,HMM,해운
 066570,LG Electronics,LG전자,가전
+003550,LG,LG,지주사
 017670,SK Telecom,SK텔레콤,통신
-015760,KEPCO,한국전력,유틸리티
-009150,Samsung Electro-Mechanics,삼성전기,전자
+030200,KT,KT,통신
 032830,Samsung Life,삼성생명,보험
-018260,Samsung SDS,삼성에스디에스,IT서비스
-028260,Samsung C&T,삼성물산,상사
-003670,POSCO Future M,포스코퓨처엠,2차전지소재
-005490,POSCO Holdings,POSCO홀딩스,철강
-096770,SK Innovation,SK이노베이션,에너지
+009150,Samsung Electro-Mechanics,삼성전기,전자
+010130,Korea Zinc,고려아연,비철금속
 034730,SK,SK,지주사
-033780,KT&G,케이티앤지,담배/식품
-024110,Industrial Bank of Korea,IBK기업은행,금융
-139480,Emart,이마트,유통
-023530,Lotte Shopping,롯데쇼핑,유통
-271560,Orion,오리온,식음료
-097950,CJ CheilJedang,CJ제일제당,식음료
+096770,SK Innovation,SK이노베이션,에너지
 000810,Samsung Fire,삼성화재,보험
 138040,Meritz Financial,메리츠금융지주,금융
-005935,Samsung Electronics Pref,삼성전자우,반도체
-009540,HD Korea Shipbuilding,HD한국조선해양,조선
-329180,HD Hyundai Heavy,HD현대중공업,조선
+010140,Samsung Heavy,삼성중공업,조선
+047810,KAI,한국항공우주,방산
+012450,Hanwha Aerospace,한화에어로스페이스,방산
+064350,Hyundai Rotem,현대로템,방산
+272210,Hanwha Systems,한화시스템,방산
 042660,Hanwha Ocean,한화오션,조선
+329180,HD Hyundai Heavy,HD현대중공업,조선
+009540,HD Korea Shipbuilding,HD한국조선해양,조선
+267250,HD Hyundai,HD현대,지주사
 267260,HD Hyundai Electric,HD현대일렉트릭,전기설비
+011170,Lotte Chemical,롯데케미칼,화학
+009830,Hanwha Solutions,한화솔루션,화학
+097950,CJ CheilJedang,CJ제일제당,식음료
+271560,Orion,오리온,식음료
+033780,KT&G,케이티앤지,담배/식품
+139480,Emart,이마트,유통
+023530,Lotte Shopping,롯데쇼핑,유통
+003490,Korean Air,대한항공,항공
+028050,Samsung Engineering,삼성엔지니어링,건설
+047040,Daewoo Eng & Constr,대우건설,건설
+000720,Hyundai E&C,현대건설,건설
+006360,GS E&C,GS건설,건설
+375500,DL E&C,DL이앤씨,건설
+161390,Hankook Tire,한국타이어앤테크놀로지,타이어
+018260,Samsung SDS,삼성에스디에스,IT서비스
+034020,Doosan Enerbility,두산에너빌리티,발전설비
+241560,Doosan Bobcat,두산밥캣,건설기계
+192080,Doosan Robotics,두산로보틱스,로봇
 259960,Krafton,크래프톤,게임
 036570,NCSOFT,엔씨소프트,게임
-112040,Wemade,위메이드,게임
 352820,HYBE,하이브,엔터테인먼트
+251270,Netmarble,넷마블,게임
 041510,SM Entertainment,에스엠,엔터테인먼트
 122870,YG Entertainment,와이지엔터테인먼트,엔터테인먼트
 035900,JYP Ent,JYP Ent.,엔터테인먼트
-251270,Netmarble,넷마블,게임
-018880,Hanon Systems,한온시스템,자동차부품
-161390,Hankook Tire,한국타이어앤테크놀로지,타이어
-180640,Hanjin,한진,운송
-003490,Korean Air,대한항공,항공
-047810,KAI,한국항공우주,방산
-272210,Hanwha Systems,한화시스템,방산
-012450,Hanwha Aerospace,한화에어로스페이스,방산
-064350,Hyundai Rotem,현대로템,방산
-047040,Daewoo Eng & Constr,대우건설,건설
-000720,Hyundai E&C,현대건설,건설
-028050,Samsung Engineering,삼성엔지니어링,건설
-006360,GS E&C,GS건설,건설
-375500,DL E&C,DL이앤씨,건설
-000150,Doosan,두산,지주사
-034020,Doosan Enerbility,두산에너빌리티,발전설비
-241560,Doosan Bobcat,두산밥캣,건설기계
-267250,HD Hyundai,HD현대,지주사
-010130,Korea Zinc,고려아연,비철금속
-010140,Samsung Heavy,삼성중공업,조선
-009830,Hanwha Solutions,한화솔루션,화학
-011170,Lotte Chemical,롯데케미칼,화학
-078930,GS,GS,지주사
-000100,Yuhan,유한양행,제약/바이오
-128940,Hanmi Pharmaceutical,한미약품,제약/바이오
 326030,SK Biopharm,SK바이오팜,제약/바이오
 145020,Hugel,휴젤,제약/바이오
 196170,Alteogen,알테오젠,제약/바이오
+128940,Hanmi Pharmaceutical,한미약품,제약/바이오
+000100,Yuhan,유한양행,제약/바이오
+185750,Chongkundang,종근당,제약/바이오
 006800,Mirae Asset Securities,미래에셋증권,금융
 008770,Hotel Shilla,호텔신라,호텔/면세
 032640,LG Uplus,LG유플러스,통신
-030200,KT,KT,통신
 402340,SK Square,SK스퀘어,지주사
 036460,Korea Gas,한국가스공사,유틸리티
-011200,HMM,HMM,해운
+000150,Doosan,두산,지주사
+078930,GS,GS,지주사
+214150,Classys,클래시스,의료기기
+053800,Ahnlab,안랩,보안
+112040,Wemade,위메이드,게임
+180640,Hanjin,한진,운송
+018880,Hanon Systems,한온시스템,자동차부품
+017800,Hyundai Elevator,현대엘리베이,승강기
+007310,Ottogi,오뚜기,식음료
+003230,Samyang Foods,삼양식품,식음료
 003410,Ssangyong C&E,쌍용씨앤이,시멘트
+024110,Industrial Bank of Korea,IBK기업은행,금융
+316140,Woori Financial,우리금융지주,금융
+253450,Studio Dragon,스튜디오드래곤,콘텐츠
+112610,CS Wind,씨에스윈드,풍력
 000990,DB HiTek,DB하이텍,반도체
 240810,Wonik IPS,원익아이피에스,반도체장비
-005490,POSCO Holdings,POSCO홀딩스,철강
-214150,Class is,클래시스,의료기기
-278470,Ahnlab,안랩,보안
-053800,Ahnlab,안랩,보안
-253450,Studio Dragon,스튜디오드래곤,콘텐츠
-326030,SK Biopharm,SK바이오팜,제약/바이오
-112610,CS Wind,씨에스윈드,풍력
-017800,Hyundai Elevator,현대엘리베이,승강기
-204270,Jeil M&C,제이엘케이,의료AI
-185750,Chongkundang,종근당,제약/바이오
-007310,Ottogi,오뚜기,식음료
-271940,Iljin Hysolus,일진하이솔루스,수소
-267260,HD Hyundai Electric,HD현대일렉트릭,전기설비
-003230,Samyang Foods,삼양식품,식음료
-192080,Doosan Robotics,두산로보틱스,로봇
-108860,Cell Inside,셀바이오,바이오
-060310,3S,3S,반도체장비
-402030,STX,STX,상사
-214150,Classys,클래시스,의료기기
 036930,Jusung Engineering,주성엔지니어링,반도체장비
