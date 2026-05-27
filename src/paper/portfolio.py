@@ -1,4 +1,4 @@
-"""포트폴리오 (현금 + 포지션). SQLite 기반."""
+"""포트폴리오 (현금 + 포지션). Decimal 정밀도 유지."""
 from __future__ import annotations
 
 from decimal import Decimal
@@ -13,7 +13,7 @@ def init_account_if_empty() -> None:
         if row is None:
             conn.execute(
                 "INSERT INTO account_cash (id, cash_krw, cash_usd) VALUES (1, ?, ?)",
-                (float(INITIAL_CAPITAL_KRW), float(INITIAL_CAPITAL_USD)),
+                (INITIAL_CAPITAL_KRW, INITIAL_CAPITAL_USD),
             )
 
 
@@ -21,14 +21,16 @@ def get_cash() -> tuple[Decimal, Decimal]:
     init_account_if_empty()
     with connect() as conn:
         r = conn.execute("SELECT cash_krw, cash_usd FROM account_cash WHERE id=1").fetchone()
-    return Decimal(str(r["cash_krw"])), Decimal(str(r["cash_usd"]))
+    # DECIMAL converter 로 이미 Decimal 변환됨
+    return r["cash_krw"], r["cash_usd"]
 
 
 def update_cash(cash_krw: Decimal, cash_usd: Decimal) -> None:
     with connect() as conn:
         conn.execute(
-            "UPDATE account_cash SET cash_krw=?, cash_usd=?, updated_at=CURRENT_TIMESTAMP WHERE id=1",
-            (float(cash_krw), float(cash_usd)),
+            "UPDATE account_cash SET cash_krw=?, cash_usd=?, "
+            "updated_at=CURRENT_TIMESTAMP WHERE id=1",
+            (cash_krw, cash_usd),
         )
 
 
@@ -39,15 +41,24 @@ def get_position(symbol: str) -> tuple[int, Decimal] | None:
         ).fetchone()
     if r is None:
         return None
-    return int(r["qty"]), Decimal(str(r["avg_price"]))
+    return int(r["qty"]), r["avg_price"]
 
 
 def list_positions() -> list[dict]:
     with connect() as conn:
         rows = conn.execute(
-            "SELECT symbol, market, qty, avg_price FROM positions WHERE qty > 0 ORDER BY symbol"
+            "SELECT symbol, market, qty, avg_price FROM positions "
+            "WHERE qty > 0 ORDER BY symbol"
         ).fetchall()
-    return [dict(r) for r in rows]
+    out: list[dict] = []
+    for r in rows:
+        out.append({
+            "symbol": r["symbol"],
+            "market": r["market"],
+            "qty": int(r["qty"]),
+            "avg_price": r["avg_price"],
+        })
+    return out
 
 
 def upsert_position(symbol: str, market: str, qty: int, avg_price: Decimal) -> None:
@@ -65,7 +76,7 @@ def upsert_position(symbol: str, market: str, qty: int, avg_price: Decimal) -> N
                 avg_price=excluded.avg_price,
                 updated_at=CURRENT_TIMESTAMP
             """,
-            (symbol, market, qty, float(avg_price)),
+            (symbol, market, qty, avg_price),
         )
 
 

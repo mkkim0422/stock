@@ -11,9 +11,10 @@ _FORMAT = "%(asctime)s | %(levelname)-7s | %(name)s | %(message)s"
 
 def get_logger(name: str, level: str = "INFO") -> logging.Logger:
     logger = logging.getLogger(name)
+    # 핸들러 중복 방지하되 level 은 매번 갱신 가능
+    logger.setLevel(level)
     if logger.handlers:
         return logger
-    logger.setLevel(level)
     logger.propagate = False
 
     fmt = logging.Formatter(_FORMAT)
