@@ -1,4 +1,4 @@
-"""💼 가상투자 — 모의 매수/매도 (작동 페이지)."""
+"""💼 가상투자 — 실시간 시세 기반 모의 매수/매도. 정규장 시간에만 거래."""
 from __future__ import annotations
 
 from decimal import Decimal
@@ -6,11 +6,11 @@ from decimal import Decimal
 import pandas as pd
 import streamlit as st
 
-from src.collectors.mock import MockCollector
+from src.collectors import fetch_realtime
 from src.paper.fees import calc_fee, calc_tax
 from src.paper.portfolio import get_position
 from src.paper.slippage import apply_slippage
-from src.paper.trader import execute_order
+from src.paper.trader import MarketClosedError, execute_order
 from src.storage import apply_migrations, connect
 from src.symbols import search_symbols
 from src.ui.components import render_disclaimer, render_market_status, render_sidebar
@@ -27,21 +27,22 @@ apply_migrations()
 render_sidebar()
 
 st.title("💼 가상투자")
-st.caption("실거래가 아닙니다. 모든 주문은 가상으로 체결됩니다.")
+st.caption("실거래가 아닙니다. **실시간 시세**로 가상 체결되며, **정규장 시간**에만 주문 가능합니다.")
 
 with st.expander("🕒 시장 상태", expanded=True):
     render_market_status()
-    st.caption(
-        "시장 시간 외 주문은 **다음 정규장 시가**로 체결 시각이 자동 조정됩니다 "
-        "(체결가는 mock 시세 기준)."
-    )
+    st.caption("정규장이 닫혀 있으면 주문 버튼이 비활성화됩니다 (실 증권사와 동일).")
 
-collector = MockCollector()
+
+@st.cache_data(ttl=60, show_spinner=False)
+def _quote(symbol: str) -> float:
+    """실시간 시세 (60초 캐시)."""
+    return fetch_realtime(symbol)
+
 
 # 좌/우 2단 레이아웃
 left, right = st.columns([1.1, 1])
 
-# 페이지 모듈 레벨 상태 변수 (with 블록 외부에서 가시화)
 selected = None
 price = None
 side = "BUY"
@@ -74,16 +75,17 @@ with left:
 
     if selected is not None:
         try:
-            price = collector.fetch_realtime(selected.symbol)
+            with st.spinner("실시간 시세 조회..."):
+                price = _quote(selected.symbol)
             unit_fmt = fmt_krw if selected.market == "KR" else fmt_usd
             st.success(
                 f"**{selected.name_kr or selected.name}** "
                 f"({selected.symbol}) 현재가: {unit_fmt(price)}"
             )
-        except ValueError:
+        except Exception as ex:
             st.error(
-                "이 종목은 Phase 1 mock 데이터가 없습니다. "
-                "샘플 종목 (005930, 000660, 035720, AAPL, MSFT, NVDA) 중에서 선택하세요."
+                f"시세 조회 실패: {ex}\n\n"
+                "잠시 후 다시 시도하거나 다른 종목을 선택하세요."
             )
             selected = None
 
@@ -130,18 +132,20 @@ with right:
         held = pos[0] if pos else 0
         st.caption(f"현재 보유 수량: {held:,} 주")
 
-        # 시장 상태 사전 안내
+        # 시장 상태에 따라 매매 가능 여부 결정
         now = now_kst()
         cur_status = market_status(selected.market, now)
-        if cur_status != "OPEN":
+        market_open = cur_status == "OPEN"
+
+        if not market_open:
             nxt = next_market_open(selected.market, now)
-            st.warning(
-                f"현재 {selected.market} 시장 상태: **{status_label(cur_status)}**. "
-                f"주문은 **{nxt.strftime('%Y-%m-%d %H:%M KST')}** (다음 정규장 시가) "
-                f"체결로 기록됩니다."
+            st.error(
+                f"🚫 현재 {selected.market} 시장 상태: **{status_label(cur_status)}**\n\n"
+                f"다음 개장 시각: **{nxt.strftime('%Y-%m-%d %H:%M KST')}**\n\n"
+                f"실제 증권사와 동일하게, 정규장 시간에만 주문할 수 있습니다."
             )
 
-        disabled = False
+        disabled = not market_open
         if side == "SELL" and held < qty:
             st.error(f"보유 수량({held:,})이 부족합니다.")
             disabled = True
@@ -161,21 +165,14 @@ with right:
                     f"체결 완료! 주문 ID #{r['trade_id']}, "
                     f"체결가 {unit_fmt(float(r['fill_price']))}"
                 )
-                exec_ts = r.get("executed_ts")
-                req_ts = r.get("requested_ts")
-                if exec_ts and req_ts and exec_ts != req_ts:
-                    st.info(
-                        f"🕒 시장 시간 외 주문 → 체결 시각을 "
-                        f"**{exec_ts.astimezone(now.tzinfo).strftime('%Y-%m-%d %H:%M KST')}** "
-                        f"(다음 정규장 시가) 로 조정"
-                    )
                 if r["realized_pnl"] is not None:
                     pnl = float(r["realized_pnl"])
                     emoji = "🟢" if pnl >= 0 else "🔴"
                     st.info(f"{emoji} 실현손익: {unit_fmt(pnl)}")
                 st.balloons()
-                # 사이드바/거래목록 즉시 반영
                 st.rerun()
+            except MarketClosedError as ex:
+                st.error(f"체결 실패 (시장 닫힘): {ex}")
             except ValueError as ex:
                 st.error(f"체결 실패: {ex}")
 

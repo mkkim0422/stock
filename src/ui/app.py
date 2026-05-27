@@ -17,6 +17,14 @@ st.set_page_config(
 )
 
 apply_migrations()
+
+# 종목 마스터 자동 갱신 (3시간 간격, 백그라운드 첫 진입 시 한 번만)
+try:
+    from src.symbols import maybe_refresh
+    maybe_refresh()
+except Exception:
+    pass  # 갱신 실패해도 앱은 계속 작동
+
 render_sidebar()
 
 st.title("📊 swing-advisor")

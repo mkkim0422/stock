@@ -4,7 +4,8 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from src.collectors.mock import MockCollector
+from src.collectors import fetch_realtime
+from src.collectors.base import BaseCollector
 from src.config.constants import INITIAL_CAPITAL_KRW, INITIAL_CAPITAL_USD
 from src.paper.fx import get_fx_rate
 from src.paper.portfolio import get_cash, list_positions
@@ -15,7 +16,7 @@ def _initial_total_krw() -> Decimal:
     return INITIAL_CAPITAL_KRW + INITIAL_CAPITAL_USD * get_fx_rate()
 
 
-def evaluate(collector: MockCollector | None = None, on_date: date | None = None) -> dict:
+def evaluate(collector: BaseCollector | None = None, on_date: date | None = None) -> dict:
     """현재 평가액과 손익.
 
     on_date 가 주어지면 portfolio_snapshots 에서 해당 날짜 스냅샷을 우선 반환.
@@ -42,7 +43,6 @@ def evaluate(collector: MockCollector | None = None, on_date: date | None = None
                 "from_snapshot": True,
             }
 
-    collector = collector or MockCollector()
     cash_krw, cash_usd = get_cash()
     fx = get_fx_rate()
 
@@ -54,7 +54,11 @@ def evaluate(collector: MockCollector | None = None, on_date: date | None = None
         avg = p["avg_price"]
         market = p["market"]
         try:
-            cur = Decimal(str(collector.fetch_realtime(sym)))
+            if collector is not None:
+                cur_price = collector.fetch_realtime(sym)
+            else:
+                cur_price = fetch_realtime(sym)
+            cur = Decimal(str(cur_price))
         except Exception:
             cur = avg
         local_value = cur * Decimal(qty)

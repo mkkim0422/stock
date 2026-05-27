@@ -12,6 +12,10 @@ from src.paper.slippage import apply_slippage
 from src.storage import connect
 
 
+class MarketClosedError(ValueError):
+    """시장 시간 외 주문 시도."""
+
+
 def _market_of(symbol: str) -> str:
     """심볼 마스터 조회 우선, 폴백으로 코드 형태 판별."""
     try:
@@ -49,12 +53,14 @@ def execute_order(
     requested_ts = ts or datetime.now(UTC)
     market_status_at_request = None
     if respect_market_hours:
-        from src.utils.market_hours import market_status, next_market_open
+        from src.utils.market_hours import market_status
         market_status_at_request = market_status(market, requested_ts)
         if market_status_at_request != "OPEN":
-            ts = next_market_open(market, requested_ts)
-        else:
-            ts = requested_ts
+            raise MarketClosedError(
+                f"{market} 시장이 닫혀 있습니다 (상태: {market_status_at_request}). "
+                f"정규장 시간에 다시 시도하세요."
+            )
+        ts = requested_ts
     else:
         ts = requested_ts
 

@@ -1,0 +1,5 @@
+# Streamlit Cloud 배포 전용 추가 의존성.
+# Streamlit Cloud 는 Python 3.11 또는 3.12 사용 → libsql wheel 호환.
+# 로컬 (Python 3.14) 에는 설치하지 않아도 됨.
+-r requirements.txt
+libsql_client>=0.3.1

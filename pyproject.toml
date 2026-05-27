@@ -24,11 +24,12 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM"]
 ignore = ["E501"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 ignore_missing_imports = true
 warn_unused_ignores = true
 no_implicit_optional = true
-exclude = ["build/", "dist/", ".venv/"]
+exclude = ['build/', 'dist/', '\.venv/', 'site-packages/']
+follow_imports = "silent"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
