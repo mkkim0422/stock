@@ -1,16 +1,21 @@
 name: db-backup-weekly
+# DB 백업. 일요일 04:00 UTC.
+# Turso 사용 시 자체 백업 활성. 로컬 SQLite 모드에서는 별도 백업 필요 (Phase 7+).
 
-# DB 백업. 일요일 04:00 UTC. Phase 7 에서 활성.
-# on:
-#   schedule:
-#     - cron: "0 4 * * 0"
 on:
+  schedule:
+    - cron: "0 4 * * 0"
   workflow_dispatch:
 
 jobs:
   backup:
     runs-on: ubuntu-latest
-    if: false
     steps:
       - uses: actions/checkout@v4
-      - run: echo "Phase 7 에서 활성 (VACUUM + 백업 파일 보관)"
+      - name: Turso backup status
+        run: |
+          if [ -n "${{ secrets.TURSO_DATABASE_URL }}" ]; then
+            echo "✅ Turso 자체 백업 활성 (libSQL 다중 리전 복제)"
+          else
+            echo "⚠️ TURSO_DATABASE_URL 미설정. 백업 활성 필요."
+          fi

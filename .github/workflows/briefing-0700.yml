@@ -1,16 +1,27 @@
 name: briefing-0700-kst
+# KST 07:00 = UTC 22:00 (전날). GitHub Actions cron 15~30분 지연 정상.
 
-# KST 07:00 = UTC 22:00 (전날). Phase 6 활성.
-# on:
-#   schedule:
-#     - cron: "0 22 * * *"
 on:
+  schedule:
+    - cron: "0 22 * * *"
   workflow_dispatch:
 
 jobs:
   brief:
     runs-on: ubuntu-latest
-    if: false  # Phase 6 에서 활성
     steps:
       - uses: actions/checkout@v4
-      - run: echo "Phase 6 에서 활성"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-cloud.txt
+      - run: python -m scripts.briefing_cli --slot "07:00"
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}

@@ -1,16 +1,25 @@
 name: briefing-2330-kst
+# KST 23:30 = UTC 14:30.
 
-# KST 23:30 = UTC 14:30. Phase 6 활성.
-# on:
-#   schedule:
-#     - cron: "30 14 * * *"
 on:
+  schedule:
+    - cron: "30 14 * * *"
   workflow_dispatch:
 
 jobs:
   brief:
     runs-on: ubuntu-latest
-    if: false
     steps:
       - uses: actions/checkout@v4
-      - run: echo "Phase 6 에서 활성"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements-cloud.txt
+      - run: python -m scripts.briefing_cli --slot "23:30"
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
