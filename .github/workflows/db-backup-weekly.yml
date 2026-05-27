@@ -1,0 +1,16 @@
+name: db-backup-weekly
+
+# DB 백업. 일요일 04:00 UTC. Phase 7 에서 활성.
+# on:
+#   schedule:
+#     - cron: "0 4 * * 0"
+on:
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    if: false
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Phase 7 에서 활성 (VACUUM + 백업 파일 보관)"

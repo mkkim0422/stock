@@ -1,0 +1,16 @@
+name: briefing-0700-kst
+
+# KST 07:00 = UTC 22:00 (전날). Phase 6 활성.
+# on:
+#   schedule:
+#     - cron: "0 22 * * *"
+on:
+  workflow_dispatch:
+
+jobs:
+  brief:
+    runs-on: ubuntu-latest
+    if: false  # Phase 6 에서 활성
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Phase 6 에서 활성"

@@ -1,0 +1,17 @@
+name: keepalive-weekly
+
+# Streamlit Cloud 12h sleep 회피용. 일요일 03:00 UTC.
+# Phase 7 에서 활성.
+# 무한 루프 방지: commit 없이 echo 만 한다.
+# on:
+#   schedule:
+#     - cron: "0 3 * * 0"
+on:
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    if: false
+    steps:
+      - run: echo "keepalive ping (no commit, no infinite loop)"

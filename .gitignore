@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.tox/
+
+# Build / dist
+build/
+dist/
+*.egg-info/
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+!.streamlit/secrets.toml.example
+*.pem
+*.key
+secrets/
+
+# Data
+data/db/*.db
+data/db/*.db-wal
+data/db/*.db-shm
+data/db/*.db-journal
+data/backups/*
+!data/backups/.gitkeep
+data/cache/
+
+# Logs
+logs/*.log
+logs/*.txt
+!logs/.gitkeep
+
+# OS
+*.bak
+*.tmp
+.cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Streamlit
+.streamlit/cache/

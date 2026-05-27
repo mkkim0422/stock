@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(py:*)",
+      "Bash(python:*)",
+      "Bash(pip:*)",
+      "Bash(pytest:*)",
+      "Bash(ruff:*)",
+      "Bash(mypy:*)",
+      "Bash(streamlit:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git init)",
+      "Bash(git config:*)",
+      "PowerShell(*)"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(dd:*)",
+      "Bash(mkfs:*)",
+      "Bash(sudo:*)",
+      "Bash(git push --force:*)"
+    ]
+  },
+  "env": {
+    "PYTHONIOENCODING": "utf-8"
+  }
+}

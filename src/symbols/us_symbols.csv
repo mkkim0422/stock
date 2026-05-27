@@ -1,0 +1,103 @@
+symbol,name,name_kr,sector
+AAPL,Apple,애플,Tech
+MSFT,Microsoft,마이크로소프트,Tech
+GOOGL,Alphabet A,알파벳,Tech
+GOOG,Alphabet C,알파벳C,Tech
+AMZN,Amazon,아마존,Consumer Cyclical
+NVDA,NVIDIA,엔비디아,Semiconductor
+META,Meta Platforms,메타,Tech
+TSLA,Tesla,테슬라,Auto
+BRK.B,Berkshire Hathaway,버크셔해서웨이,Financial
+LLY,Eli Lilly,일라이릴리,Healthcare
+V,Visa,비자,Financial
+JPM,JPMorgan Chase,JP모건,Financial
+UNH,UnitedHealth,유나이티드헬스,Healthcare
+XOM,Exxon Mobil,엑손모빌,Energy
+WMT,Walmart,월마트,Consumer Staples
+JNJ,Johnson & Johnson,존슨앤드존슨,Healthcare
+MA,Mastercard,마스터카드,Financial
+PG,Procter & Gamble,P&G,Consumer Staples
+HD,Home Depot,홈디포,Consumer Cyclical
+COST,Costco,코스트코,Consumer Staples
+ORCL,Oracle,오라클,Tech
+ABBV,AbbVie,애브비,Healthcare
+NFLX,Netflix,넷플릭스,Communication
+BAC,Bank of America,뱅크오브아메리카,Financial
+KO,Coca-Cola,코카콜라,Consumer Staples
+PEP,PepsiCo,펩시코,Consumer Staples
+ADBE,Adobe,어도비,Tech
+CRM,Salesforce,세일즈포스,Tech
+TMO,Thermo Fisher,써모피셔,Healthcare
+LIN,Linde,린데,Materials
+CVX,Chevron,쉐브론,Energy
+MRK,Merck,머크,Healthcare
+ABT,Abbott,애보트,Healthcare
+DIS,Disney,디즈니,Communication
+ACN,Accenture,액센츄어,Tech
+WFC,Wells Fargo,웰스파고,Financial
+CSCO,Cisco,시스코,Tech
+DHR,Danaher,다나허,Healthcare
+INTC,Intel,인텔,Semiconductor
+AMD,AMD,AMD,Semiconductor
+QCOM,Qualcomm,퀄컴,Semiconductor
+TXN,Texas Instruments,텍사스인스트루먼츠,Semiconductor
+AVGO,Broadcom,브로드컴,Semiconductor
+NOW,ServiceNow,서비스나우,Tech
+INTU,Intuit,인튜이트,Tech
+IBM,IBM,IBM,Tech
+GE,General Electric,제너럴일렉트릭,Industrial
+CAT,Caterpillar,캐터필러,Industrial
+BA,Boeing,보잉,Industrial
+HON,Honeywell,허니웰,Industrial
+RTX,RTX,RTX,Industrial
+LMT,Lockheed Martin,록히드마틴,Industrial
+NEE,NextEra Energy,넥스트에라에너지,Utilities
+DUK,Duke Energy,듀크에너지,Utilities
+SO,Southern Co,써던컴퍼니,Utilities
+T,AT&T,AT&T,Communication
+VZ,Verizon,버라이즌,Communication
+CMCSA,Comcast,컴캐스트,Communication
+LOW,Lowe's,로우스,Consumer Cyclical
+NKE,Nike,나이키,Consumer Cyclical
+MCD,McDonald's,맥도날드,Consumer Cyclical
+SBUX,Starbucks,스타벅스,Consumer Cyclical
+PFE,Pfizer,화이자,Healthcare
+GILD,Gilead Sciences,길리어드,Healthcare
+AMGN,Amgen,암젠,Healthcare
+BMY,Bristol Myers,브리스톨마이어스,Healthcare
+ABNB,Airbnb,에어비앤비,Consumer Cyclical
+UBER,Uber,우버,Tech
+SHOP,Shopify,쇼피파이,Tech
+SPOT,Spotify,스포티파이,Communication
+PYPL,PayPal,페이팔,Financial
+SQ,Block,블록(스퀘어),Financial
+COIN,Coinbase,코인베이스,Financial
+ROKU,Roku,로쿠,Communication
+PLTR,Palantir,팔란티어,Tech
+SNOW,Snowflake,스노우플레이크,Tech
+NET,Cloudflare,클라우드플레어,Tech
+DDOG,Datadog,데이터독,Tech
+CRWD,CrowdStrike,크라우드스트라이크,Tech
+ZS,Zscaler,Z스케일러,Tech
+OKTA,Okta,옥타,Tech
+TEAM,Atlassian,아틀라시안,Tech
+WBD,Warner Bros Discovery,워너브라더스디스커버리,Communication
+PARA,Paramount,파라마운트,Communication
+F,Ford,포드,Auto
+GM,General Motors,GM,Auto
+RIVN,Rivian,리비안,Auto
+LCID,Lucid,루시드,Auto
+DE,Deere,디어,Industrial
+GS,Goldman Sachs,골드만삭스,Financial
+MS,Morgan Stanley,모건스탠리,Financial
+SCHW,Charles Schwab,찰스슈왑,Financial
+BLK,BlackRock,블랙록,Financial
+SPGI,S&P Global,S&P글로벌,Financial
+ICE,Intercontinental Exchange,인터컨티넨탈익스체인지,Financial
+MMM,3M,3M,Industrial
+UPS,UPS,UPS,Industrial
+FDX,FedEx,페덱스,Industrial
+DAL,Delta Air Lines,델타항공,Industrial
+LUV,Southwest Airlines,사우스웨스트항공,Industrial
+SPY,SPDR S&P 500 ETF,SPDR S&P 500 ETF,ETF
+QQQ,Invesco QQQ,인베스코 QQQ,ETF
