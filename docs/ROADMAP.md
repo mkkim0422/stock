@@ -19,11 +19,13 @@
 - 환경변수 `USE_MOCK=1` 로 외부 호출 차단 (테스트/오프라인)
 - Turso: 다음 Phase 검토 (필요성 낮음 — 로컬 SQLite로 충분)
 
-## Phase 3 — 지표/시그널 엔진
-- RSI/MACD/MA 확장
-- 거래량 지표 (VR, OBV)
-- 가중치 +8/-3 결합
-- DB `signals` 테이블 사용
+## Phase 3 — 지표/시그널 엔진 (완료)
+- RSI/MACD/MA + VR/OBV 거래량 지표
+- 가중치 +8 매수 / -3 매도 결합
+- `src/signals/engine.py` + `components.py`
+- DB `signals` 테이블 자동 기록
+- UI 9_Signals.py — 워치리스트 모니터링 (점수 정렬, 색상)
+- 워치리스트: 종목 추가/삭제, DB `watchlist` 테이블
 
 ## Phase 4 — 백테스트 엔진
 - 워크포워드
