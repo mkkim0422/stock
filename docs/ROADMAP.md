@@ -8,12 +8,16 @@
 - Streamlit UI (4_PaperTrading, 5_Results 작동)
 - 보안/면책 시스템
 
-## Phase 2 — 실제 데이터 수집
-- pykrx (한국)
-- yfinance + FinanceDataReader 폴백 (미국)
-- exchangerate.host (환율)
-- 종목 마스터 동적 갱신
-- Turso 검토
+## Phase 2 — 실데이터 수집 (완료)
+- pykrx (한국) — `src/collectors/kr.py`
+- yfinance + FinanceDataReader 폴백 (미국) — `src/collectors/us.py`
+- exchangerate.host → open.er-api.com 폴백 → 캐시 (환율) — `src/collectors/fx.py`
+- prices/fx_cache SQLite 캐싱 — `src/collectors/cache.py`
+- 종목 마스터 DB-backed + KRX 동적 갱신 — `src/symbols/master.refresh_kr_from_krx()`
+- 시장 개장/마감 시간 — `src/utils/market_hours.py` (KR/US 시장 시간 외 주문은 다음 정규장 시가로 자동 조정)
+- UI: 2_Market (KOSPI/KOSDAQ/S&P/NASDAQ 6개월 차트), 3_Stocks (캔들+MA+RSI+MACD)
+- 환경변수 `USE_MOCK=1` 로 외부 호출 차단 (테스트/오프라인)
+- Turso: 다음 Phase 검토 (필요성 낮음 — 로컬 SQLite로 충분)
 
 ## Phase 3 — 지표/시그널 엔진
 - RSI/MACD/MA 확장

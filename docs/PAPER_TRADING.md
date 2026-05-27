@@ -36,6 +36,15 @@
 - 지정가: 봉 내 [low, high] 포함 시 체결가, 아니면 미체결
 - Phase 1 은 시장가만 구현 → 지정가는 Phase 3에서 확장
 
+## 시장 시간 반영 (Phase 2)
+- KRX 정규장: 09:00 ~ 15:30 KST (점심시간 없음)
+- NYSE 정규장: 09:30 ~ 16:00 ET (서머타임 자동, zoneinfo)
+- 공휴일/주말: `src/utils/calendar.py` 의 정적 frozenset (2024-2027)
+- `trader.execute_order(respect_market_hours=True)` 가 기본
+  - 시장 시간 외 주문은 **다음 정규장 시가**로 `executed_ts` 자동 조정
+  - 반환 dict 의 `market_status_at_request`, `executed_ts`, `requested_ts` 로 추적
+- UI 가상투자 페이지: 시장 상태 배지 + 시간 외 주문 안내 + 체결 후 조정 시각 표시
+
 ## 분할매매
 - 평단가 = 가중평균
 - 일부 매도 시 잔여 평단가 유지

@@ -13,8 +13,13 @@ from src.paper.slippage import apply_slippage
 from src.paper.trader import execute_order
 from src.storage import apply_migrations, connect
 from src.symbols import search_symbols
-from src.ui.components import render_disclaimer, render_sidebar
+from src.ui.components import render_disclaimer, render_market_status, render_sidebar
 from src.ui.components.kpi_card import fmt_krw, fmt_usd
+from src.utils.market_hours import (
+    market_status,
+    next_market_open,
+    status_label,
+)
 from src.utils.timezone import now_kst
 
 st.set_page_config(page_title="가상투자 · swing-advisor", page_icon="💼", layout="wide")
@@ -23,6 +28,13 @@ render_sidebar()
 
 st.title("💼 가상투자")
 st.caption("실거래가 아닙니다. 모든 주문은 가상으로 체결됩니다.")
+
+with st.expander("🕒 시장 상태", expanded=True):
+    render_market_status()
+    st.caption(
+        "시장 시간 외 주문은 **다음 정규장 시가**로 체결 시각이 자동 조정됩니다 "
+        "(체결가는 mock 시세 기준)."
+    )
 
 collector = MockCollector()
 
@@ -118,6 +130,17 @@ with right:
         held = pos[0] if pos else 0
         st.caption(f"현재 보유 수량: {held:,} 주")
 
+        # 시장 상태 사전 안내
+        now = now_kst()
+        cur_status = market_status(selected.market, now)
+        if cur_status != "OPEN":
+            nxt = next_market_open(selected.market, now)
+            st.warning(
+                f"현재 {selected.market} 시장 상태: **{status_label(cur_status)}**. "
+                f"주문은 **{nxt.strftime('%Y-%m-%d %H:%M KST')}** (다음 정규장 시가) "
+                f"체결로 기록됩니다."
+            )
+
         disabled = False
         if side == "SELL" and held < qty:
             st.error(f"보유 수량({held:,})이 부족합니다.")
@@ -138,6 +161,14 @@ with right:
                     f"체결 완료! 주문 ID #{r['trade_id']}, "
                     f"체결가 {unit_fmt(float(r['fill_price']))}"
                 )
+                exec_ts = r.get("executed_ts")
+                req_ts = r.get("requested_ts")
+                if exec_ts and req_ts and exec_ts != req_ts:
+                    st.info(
+                        f"🕒 시장 시간 외 주문 → 체결 시각을 "
+                        f"**{exec_ts.astimezone(now.tzinfo).strftime('%Y-%m-%d %H:%M KST')}** "
+                        f"(다음 정규장 시가) 로 조정"
+                    )
                 if r["realized_pnl"] is not None:
                     pnl = float(r["realized_pnl"])
                     emoji = "🟢" if pnl >= 0 else "🔴"

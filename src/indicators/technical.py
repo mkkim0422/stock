@@ -4,6 +4,7 @@ pandas-ta / ta-lib 의존 금지. 수식은 docs/INDICATORS.md.
 """
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 
@@ -22,10 +23,10 @@ def rsi(price: pd.Series, n: int = 14) -> pd.Series:
     loss = (-delta).clip(lower=0)
     avg_gain = gain.ewm(alpha=1 / n, adjust=False).mean()
     avg_loss = loss.ewm(alpha=1 / n, adjust=False).mean()
-    rs = avg_gain / avg_loss.replace(0, pd.NA)
+    rs = avg_gain / avg_loss.replace(0, np.nan)
     out = 100 - 100 / (1 + rs)
-    out = out.fillna(100)  # 모든 손실이 0일 때
-    return out
+    # 모든 손실이 0인 구간 → RSI 100
+    return out.fillna(100.0)
 
 
 def macd(

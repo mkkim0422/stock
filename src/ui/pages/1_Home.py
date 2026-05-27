@@ -5,7 +5,12 @@ import streamlit as st
 
 from src.paper.performance import evaluate
 from src.storage import apply_migrations, connect
-from src.ui.components import kpi_row, render_disclaimer, render_sidebar
+from src.ui.components import (
+    kpi_row,
+    render_disclaimer,
+    render_market_status,
+    render_sidebar,
+)
 from src.ui.components.kpi_card import fmt_krw, fmt_pct
 from src.utils.timezone import now_kst
 
@@ -33,6 +38,9 @@ kpi_row(
         {"label": "현금 (KRW)", "value": fmt_krw(e["cash_krw"])},
     ]
 )
+
+st.markdown("### 🕒 시장 상태")
+render_market_status()
 
 st.markdown("### 🧭 지금 무엇을 할까요?")
 c1, c2, c3 = st.columns(3)

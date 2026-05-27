@@ -30,8 +30,14 @@ def execute_order(
     qty: int,
     quote_price: Decimal,
     ts: datetime | None = None,
+    respect_market_hours: bool = True,
 ) -> dict:
-    """시장가 주문 체결 (단일 트랜잭션, Decimal 정밀도 유지)."""
+    """시장가 주문 체결 (단일 트랜잭션, Decimal 정밀도 유지).
+
+    respect_market_hours=True (기본) 면 시장 시간 외 주문은 다음 정규장 시가로
+    체결시각을 조정. 반환 dict 의 `market_status_at_request` 와
+    `executed_ts` 로 확인 가능.
+    """
     if side not in ("BUY", "SELL"):
         raise ValueError(f"side must be BUY or SELL, got {side!r}")
     if qty <= 0:
@@ -40,7 +46,17 @@ def execute_order(
         raise ValueError(f"quote_price must be positive, got {quote_price}")
 
     market = _market_of(symbol)
-    ts = ts or datetime.now(UTC)
+    requested_ts = ts or datetime.now(UTC)
+    market_status_at_request = None
+    if respect_market_hours:
+        from src.utils.market_hours import market_status, next_market_open
+        market_status_at_request = market_status(market, requested_ts)
+        if market_status_at_request != "OPEN":
+            ts = next_market_open(market, requested_ts)
+        else:
+            ts = requested_ts
+    else:
+        ts = requested_ts
 
     fill_price = apply_slippage(quote_price, side)
     notional = fill_price * Decimal(qty)
@@ -181,4 +197,7 @@ def execute_order(
         "cash_delta_krw": cash_delta_krw,
         "cash_delta_usd": cash_delta_usd,
         "realized_pnl": realized_pnl,
+        "executed_ts": ts,
+        "requested_ts": requested_ts,
+        "market_status_at_request": market_status_at_request,
     }

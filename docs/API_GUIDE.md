@@ -1,8 +1,9 @@
 # API_GUIDE — 외부 API 사용 가이드 (Phase 2+ 활성)
 
-## Phase 1 상태
-**Phase 1은 외부 API 호출이 없다**. fixtures만 사용.
-이 문서는 Phase 2 이후 활성화를 위한 사전 안내.
+## 현재 상태 (Phase 2 활성)
+- pykrx, yfinance + FinanceDataReader, exchangerate.host 활성
+- 환경변수 `USE_MOCK=1` 로 강제 mock (테스트/오프라인)
+- 모든 호출은 SQLite 캐시 우선 + tenacity 백오프 + 다중 소스 폴백
 
 ## 한국 시세
 | 라이브러리 | 용도 | 무료 한도 |
