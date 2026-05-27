@@ -43,3 +43,15 @@
 - 일부 패키지(특히 pandas/numpy 신버전)는 3.14 wheel 미배포 가능
 - 해결: 3.11 또는 3.12 사용 권장
 - 또는 소스 빌드 (`pip install --no-binary :all: pandas` — 느림)
+- libsql_client 는 3.14 wheel 없음 → Streamlit Cloud (3.11/3.12) 에서만 활성
+
+## 기존 swing.db 가 있는데 컬럼 타입 에러
+- Phase 1 에서 REAL → DECIMAL_TEXT 마이그레이션 후 기존 DB와 schema 불일치
+- 증상: `TypeError: unsupported operand type(s) for *: 'float' and 'Decimal'`
+- 해결:
+  ```powershell
+  Remove-Item data/db/swing.db -Force
+  Remove-Item data/db/swing.db-wal -Force -ErrorAction SilentlyContinue
+  Remove-Item data/db/swing.db-shm -Force -ErrorAction SilentlyContinue
+  ```
+- 운영 중인 데이터가 있다면: streamlit run 전에 백업 후 reset

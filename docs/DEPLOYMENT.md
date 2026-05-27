@@ -69,7 +69,10 @@ MODE = "paper"
 
 Streamlit Cloud 무료 앱은 **12시간 비활성 시 sleep**. 다시 접속하면 30초 정도 깨우기.
 
-매일 한 번 자동으로 깨우려면 `.github/workflows/keepalive-weekly.yml` 의 `cron` 주석을 풀어 활성. (Phase 7 에서 검토 예정)
+자동 ping 활성:
+1. GitHub repo → Settings → Secrets and variables → Actions → New secret
+2. Name: `STREAMLIT_APP_URL`, Value: 본인 앱 URL (예: `https://swing-advisor-xxx.streamlit.app`)
+3. `.github/workflows/keepalive-weekly.yml` 가 일요일 03:00 UTC 에 자동 ping (이미 활성)
 
 ---
 

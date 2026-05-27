@@ -9,6 +9,9 @@ import streamlit as st
 
 from src.collectors import fetch_ohlcv
 from src.collectors.mock import MockCollector
+from src.llm import generate_signal_comment
+from src.llm import is_available as llm_available
+from src.signals import evaluate as eval_signal_only
 from src.signals import evaluate_and_persist
 from src.storage import apply_migrations
 from src.symbols import search_symbols
@@ -143,4 +146,29 @@ st.caption(
     "📐 점수 산식: RSI(±2) + MACD 크로스(±3) + 이동평균 위(+1×3) + "
     "5일 과열(-1) + 거래량 평균 2x+(+2) + OBV 매집(+1)."
 )
+
+# ── LLM 코멘트 (옵션) ─────────────────────────────────
+if llm_available() and (buy_n + sell_n) > 0:
+    st.markdown("### 🤖 LLM 보조 코멘트")
+    st.caption("매수/매도 후보 종목에 대한 자동 생성 코멘트입니다. **참고용**.")
+    interesting = [r for r in results if r["액션"] in ("BUY", "SELL")][:5]
+    for r in interesting:
+        sym = r["종목"]
+        hits = search_symbols(sym, limit=1)
+        name_kr = hits[0].name_kr if hits else sym
+        df_x = _fetch(sym)
+        if df_x.empty:
+            continue
+        try:
+            sig = eval_signal_only(sym, df_x)
+            comment = generate_signal_comment(
+                sym, name_kr or sym, sig.action, sig.score, sig.components
+            )
+        except Exception:
+            comment = None
+        if comment:
+            emoji = "🟢" if r["액션"] == "BUY" else "🔴"
+            with st.expander(f"{emoji} {sym} ({name_kr or '—'}) — 점수 {r['점수']:+d}"):
+                st.write(comment)
+
 render_disclaimer()

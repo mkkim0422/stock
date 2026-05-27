@@ -33,6 +33,40 @@ class BacktestResult:
     final_value: float
     cash_end: float
 
+    def persist(self, symbol: str, market: str, mode: str = "full") -> int:
+        """결과 메트릭을 backtest_results 테이블에 기록. 반환: id."""
+        from src.storage import connect
+        from src.utils.timezone import now_kst
+
+        with connect() as conn:
+            cur = conn.execute(
+                """
+                INSERT INTO backtest_results
+                (ts, symbol, market, period_start, period_end, mode,
+                 total_return_pct, cagr_pct, sharpe, sortino,
+                 max_drawdown_pct, win_rate_pct, profit_factor,
+                 n_trades, final_value)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    now_kst().isoformat(timespec="seconds"),
+                    symbol, market,
+                    self.metrics.start.isoformat(),
+                    self.metrics.end.isoformat(),
+                    mode,
+                    Decimal(str(self.metrics.total_return_pct)),
+                    Decimal(str(self.metrics.cagr_pct)),
+                    Decimal(str(self.metrics.sharpe)),
+                    Decimal(str(self.metrics.sortino)),
+                    Decimal(str(self.metrics.max_drawdown_pct)),
+                    Decimal(str(self.metrics.win_rate_pct)),
+                    Decimal(str(self.metrics.profit_factor)),
+                    self.metrics.n_trades,
+                    Decimal(str(self.final_value)),
+                ),
+            )
+            return cur.lastrowid or 0
+
 
 def _market_fees(market: str) -> tuple[Decimal, Decimal]:
     if market == "KR":
@@ -74,18 +108,17 @@ def run_single(
     dates = list(df.index)
 
     for i in range(warmup_bars, len(dates) - 1):
-        dates[i]
         next_d = dates[i + 1]
 
-        # 시그널 평가: t 시점까지만 데이터 사용 (look-ahead 가드)
         hist = df.iloc[: i + 1]
-        check_no_lookahead(hist, next_d if isinstance(next_d, date) else next_d.date())
+        check_no_lookahead(
+            hist, next_d if isinstance(next_d, date) else next_d.date()
+        )
 
         sig = evaluate_signal(symbol, hist)
         next_open = Decimal(str(df.iloc[i + 1]["open"]))
 
         if sig.action == "BUY" and qty == 0:
-            # 다음 봉 시가 + 슬리피지로 매수
             fill = next_open * (Decimal(1) + slip)
             shares_max = int(cash // (fill * (Decimal(1) + fee_rate)))
             if shares_max > 0:
@@ -117,12 +150,14 @@ def run_single(
             avg_price = Decimal(0)
             entry_date = None
 
-        # 자산곡선 (mark-to-market)
-        mtm = cash + (Decimal(str(df.iloc[i + 1]["close"])) * Decimal(qty) if qty else Decimal(0))
+        mtm = cash + (
+            Decimal(str(df.iloc[i + 1]["close"])) * Decimal(qty)
+            if qty else Decimal(0)
+        )
         equity_dates.append(next_d)
         equity_values.append(float(mtm))
 
-    # 마지막에 포지션 남으면 강제 청산 (지표 계산용)
+    # 잔여 포지션 청산
     if qty > 0:
         last_close = Decimal(str(df.iloc[-1]["close"]))
         fill = last_close * (Decimal(1) - slip)
@@ -131,10 +166,10 @@ def run_single(
         tax = notional * tax_rate
         cash += notional - fee - tax
         pnl = float((fill - avg_price) * Decimal(qty) - fee - tax)
-        exit_date = dates[-1] if isinstance(dates[-1], date) else dates[-1].date()
+        exit_d = dates[-1] if isinstance(dates[-1], date) else dates[-1].date()
         trades.append({
             "entry_date": entry_date,
-            "exit_date": exit_date,
+            "exit_date": exit_d,
             "entry_price": float(avg_price),
             "exit_price": float(fill),
             "qty": qty,

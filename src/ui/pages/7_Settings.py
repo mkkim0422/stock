@@ -7,6 +7,10 @@ from pathlib import Path
 import streamlit as st
 
 from src.config import get_settings
+from src.llm import get_llm as _get_llm
+from src.llm import is_available as _llm_av
+from src.notifications import is_telegram_configured as _tg_cfg
+from src.notifications import send_message as _tg_send
 from src.storage import get_db_path
 from src.storage.cloud import get_status as get_cloud_status
 from src.symbols import get_last_refresh, refresh_kr_from_krx, set_last_refresh
@@ -96,5 +100,49 @@ st.info(
     "📌 환경변수는 `.env` (로컬) 또는 Streamlit Cloud > Settings > Secrets (배포) 에 설정. "
     "API 키가 없어도 핵심 기능은 작동합니다."
 )
+
+# 텔레그램 연결 테스트
+st.markdown("### 📨 텔레그램 연결 테스트")
+
+if _tg_cfg():
+    st.success("✅ 텔레그램 봇 설정 확인됨")
+    if st.button("📤 테스트 메시지 보내기"):
+        with st.spinner("전송 중..."):
+            ok = _tg_send(
+                "*[swing-advisor]* 연결 테스트 ✅\n"
+                "텔레그램 봇이 정상 작동합니다."
+            )
+        if ok:
+            st.success("전송 성공! 텔레그램을 확인하세요.")
+        else:
+            st.error(
+                "전송 실패. TOKEN/CHAT_ID 가 올바른지, "
+                "봇과 대화를 한 번 시작했는지 확인하세요."
+            )
+else:
+    st.warning(
+        "텔레그램 봇이 설정되지 않았습니다. `TELEGRAM_BOT_TOKEN` / "
+        "`TELEGRAM_CHAT_ID` 를 설정하세요. "
+        "(@BotFather 로 봇 생성 후 토큰 / api.telegram.org/bot<TOKEN>/getUpdates 로 chat_id)"
+    )
+
+# LLM 연결 테스트
+st.markdown("### 🤖 LLM 연결 테스트")
+
+if _llm_av():
+    _llm = _get_llm()
+    assert _llm is not None
+    st.success(f"✅ {_llm.name} 사용 가능")
+    if st.button("🧪 한 줄 생성 테스트"):
+        try:
+            with st.spinner("LLM 호출 중..."):
+                out = _llm.generate("한 문장으로 자기소개해 주세요.", max_tokens=80)
+            st.info(out)
+        except Exception as ex:
+            st.error(f"LLM 호출 실패: {ex}")
+else:
+    st.warning(
+        "LLM 키가 설정되지 않았습니다. `GEMINI_API_KEY` 또는 `GROQ_API_KEY` 를 설정하세요."
+    )
 
 render_disclaimer()
