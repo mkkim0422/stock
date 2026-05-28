@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -12,6 +13,14 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 import streamlit as st
+
+# Streamlit Cloud Secrets → 환경변수 동기화 (pydantic-settings 가 읽도록)
+try:
+    for _k, _v in st.secrets.items():
+        if isinstance(_v, str) and _k not in os.environ:
+            os.environ[_k] = _v
+except Exception:
+    pass  # secrets 파일 없으면 무시 (로컬 .env 사용)
 
 from src.storage import apply_migrations
 from src.ui.components import render_disclaimer, render_sidebar
