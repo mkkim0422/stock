@@ -374,20 +374,20 @@ if "scan_full" in st.session_state:
     top_sells = [r for r in list(reversed(results))[:10] if r["composite"].total < 3]
     middle = [r for r in results if r not in top_buys and r not in top_sells]
 
-    # 라벨 분포 카운트
-    sb = sum(1 for r in results if r["composite"].action == "STRONG_BUY")
-    b  = sum(1 for r in results if r["composite"].action == "BUY")
-    s  = sum(1 for r in results if r["composite"].action == "SELL")
-    ss = sum(1 for r in results if r["composite"].action == "STRONG_SELL")
+    # 강한 시그널 카운트 (절대 임계값 도달한 것만)
+    strong_buy = sum(1 for r in results if r["composite"].action == "STRONG_BUY")
+    strong_sell = sum(1 for r in results if r["composite"].action == "STRONG_SELL")
+    above_buy = sum(1 for r in results if r["composite"].total >= 6)
+    below_sell = sum(1 for r in results if r["composite"].total <= -3)
 
     st.markdown(f"### 📊 종합 분석 결과 — 시총 TOP {meta.get('top_n')}")
     c1, c2, c3, c4 = st.columns(4)
     for col, (lab, val, cls) in zip(
         (c1, c2, c3, c4),
-        (("강한 매수", sb, "toss-up"),
-         ("매수", b, "toss-up"),
-         ("매도", s, "toss-down"),
-         ("강한 매도", ss, "toss-down")),
+        (("추천 매수 (TOP)", len(top_buys), "toss-up"),
+         ("그중 강한 시그널 (+6↑)", above_buy, "toss-up"),
+         ("추천 매도/주의 (BOTTOM)", len(top_sells), "toss-down"),
+         ("그중 강한 시그널 (-3↓)", below_sell, "toss-down")),
         strict=True,
     ):
         with col:
@@ -397,9 +397,12 @@ if "scan_full" in st.session_state:
                 unsafe_allow_html=True,
             )
 
+    extra_msg = ""
+    if strong_buy or strong_sell:
+        extra_msg = f" · 🔥 강한 시그널 매수 {strong_buy}개 / 매도 {strong_sell}개"
     st.caption(
-        f"분석 완료 {len(results)}개 · 데이터 부족 {len(others)}개. "
-        "임계값(BUY ≥+6 / SELL ≤-3)에 도달 못한 종목도 **상대 점수 상위**라면 아래 표시."
+        f"분석 완료 {len(results)}개 · 데이터 부족 {len(others)}개{extra_msg}. "
+        "**상대 점수 상위 10개를 항상 표시**합니다. 강한 시그널이 적은 날(폭등·횡보장)에도 후보를 볼 수 있어요."
     )
 
     if top_buys:
