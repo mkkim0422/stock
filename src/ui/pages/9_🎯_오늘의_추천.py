@@ -157,17 +157,24 @@ def _market_label(code: str) -> str:
     return "KR" if code.isdigit() and len(code) == 6 else "US"
 
 
-def _comp_badge(action: str) -> str:
-    return {
-        "STRONG_BUY": "<span class='toss-badge toss-badge-buy'>강한 매수 후보</span>",
-        "BUY":        "<span class='toss-badge toss-badge-buy'>매수 후보</span>",
-        "HOLD":       "<span class='toss-badge toss-badge-hold'>보류</span>",
-        "SELL":       "<span class='toss-badge toss-badge-sell'>매도 후보</span>",
-        "STRONG_SELL":"<span class='toss-badge toss-badge-sell'>강한 매도 후보</span>",
-    }.get(action, "")
+def _comp_badge(action: str, rank: int | None = None, is_buy: bool = True) -> str:
+    """순위가 있으면 순위 배지 우선. 강한 시그널은 강조 배지 추가."""
+    badges: list[str] = []
+    if rank is not None:
+        # 섹션 안에서의 순위 — 매수/매도 컨텍스트에 맞게
+        side = "매수" if is_buy else "매도"
+        klass = "toss-badge-buy" if is_buy else "toss-badge-sell"
+        badges.append(f"<span class='toss-badge {klass}'>{rank}순위 {side} 후보</span>")
+    if action == "STRONG_BUY":
+        badges.append("<span class='toss-badge toss-badge-buy'>🔥 강한 시그널</span>")
+    elif action == "STRONG_SELL":
+        badges.append("<span class='toss-badge toss-badge-sell'>💥 강한 시그널</span>")
+    elif action == "HOLD" and rank is None:
+        badges.append("<span class='toss-badge toss-badge-hold'>중립 구간</span>")
+    return " ".join(badges)
 
 
-def _render_card(r: dict, is_buy: bool) -> None:
+def _render_card(r: dict, is_buy: bool, rank: int | None = None) -> None:
     comp = r["composite"]
     fund = r.get("fund") or {}
     code = r["code"]
@@ -276,7 +283,7 @@ def _render_card(r: dict, is_buy: bool) -> None:
     </div>
     <div><span class="toss-rec-score {score_cls}">{score_str}점</span></div>
   </div>
-  <div>{_comp_badge(comp.action)}</div>
+  <div>{_comp_badge(comp.action, rank=rank, is_buy=is_buy)}</div>
   <p class="toss-sub" style="margin-top:6px;">{fund_line}</p>
   <div style="margin-top:8px; padding:10px 12px; background:#F9FAFB; border-radius:10px;">
     {breakdown_rows}
@@ -397,12 +404,12 @@ if "scan_full" in st.session_state:
 
     if top_buys:
         st.markdown(f"#### 🟢 오늘의 매수 후보 TOP {len(top_buys)} (종합 점수 높은 순)")
-        for r in top_buys:
-            _render_card(r, is_buy=True)
+        for i, r in enumerate(top_buys, start=1):
+            _render_card(r, is_buy=True, rank=i)
     if top_sells:
         st.markdown(f"#### 🔴 오늘의 매도/주의 TOP {len(top_sells)} (종합 점수 낮은 순)")
-        for r in top_sells:
-            _render_card(r, is_buy=False)
+        for i, r in enumerate(top_sells, start=1):
+            _render_card(r, is_buy=False, rank=i)
 
     with st.expander(f"⚪ 중간 점수 종목 ({len(middle)}개)", expanded=False):
         rows = [{
@@ -480,8 +487,9 @@ if watched:
         prog.progress(i / len(watched), text=f"{name} ({i}/{len(watched)})")
     prog.empty()
 
+    watch_full.sort(key=lambda r: r["composite"].total, reverse=True)
     for r in watch_full:
-        is_buy = r["composite"].action in ("BUY", "STRONG_BUY")
+        is_buy = r["composite"].total >= 0
         _render_card(r, is_buy=is_buy)
 
 
