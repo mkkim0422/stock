@@ -1,6 +1,12 @@
 """🎯 시그널 — 워치리스트 종목 매수/매도 점수 모니터링."""
 from __future__ import annotations
 
+import sys as _sys
+from pathlib import Path as _Path
+_ROOT = _Path(__file__).resolve().parents[3]
+if str(_ROOT) not in _sys.path:
+    _sys.path.insert(0, str(_ROOT))
+
 import os
 from datetime import date, timedelta
 

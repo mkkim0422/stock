@@ -1,6 +1,12 @@
 """🏠 홈 — 오늘의 요약 + 빠른 액션."""
 from __future__ import annotations
 
+import sys as _sys
+from pathlib import Path as _Path
+_ROOT = _Path(__file__).resolve().parents[3]
+if str(_ROOT) not in _sys.path:
+    _sys.path.insert(0, str(_ROOT))
+
 import streamlit as st
 
 from src.paper.performance import evaluate

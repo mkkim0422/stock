@@ -1,6 +1,12 @@
 """💼 가상투자 — 실시간 시세 기반 모의 매수/매도. 정규장 시간에만 거래."""
 from __future__ import annotations
 
+import sys as _sys
+from pathlib import Path as _Path
+_ROOT = _Path(__file__).resolve().parents[3]
+if str(_ROOT) not in _sys.path:
+    _sys.path.insert(0, str(_ROOT))
+
 from decimal import Decimal
 
 import pandas as pd

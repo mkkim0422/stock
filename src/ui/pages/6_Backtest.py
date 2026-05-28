@@ -1,6 +1,12 @@
 """🧪 백테스트 — 시그널 전략 과거 성과 (Phase 4)."""
 from __future__ import annotations
 
+import sys as _sys
+from pathlib import Path as _Path
+_ROOT = _Path(__file__).resolve().parents[3]
+if str(_ROOT) not in _sys.path:
+    _sys.path.insert(0, str(_ROOT))
+
 import os
 from datetime import date, timedelta
 

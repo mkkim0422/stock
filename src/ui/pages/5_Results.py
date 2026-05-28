@@ -1,6 +1,12 @@
 """📊 투자결과 — 평가액, 보유, 자산곡선 (작동 페이지)."""
 from __future__ import annotations
 
+import sys as _sys
+from pathlib import Path as _Path
+_ROOT = _Path(__file__).resolve().parents[3]
+if str(_ROOT) not in _sys.path:
+    _sys.path.insert(0, str(_ROOT))
+
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
