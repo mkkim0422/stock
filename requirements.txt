@@ -1,3 +1,5 @@
+# setuptools 를 최상단에 둬서 다른 패키지 빌드 전에 보장 (pykrx 가 pkg_resources 사용).
+setuptools>=80
 pandas>=2.2
 numpy>=1.26
 streamlit>=1.35
@@ -10,8 +12,6 @@ httpx>=0.27
 pytz>=2024.1
 tenacity>=8.3
 # Phase 2: 실데이터 수집
-# pykrx 가 내부에서 pkg_resources(=setuptools)를 import 하므로 명시.
-setuptools>=68
 pykrx>=1.0.45
 yfinance>=0.2.40
 finance-datareader>=0.9.90
