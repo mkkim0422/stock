@@ -51,4 +51,39 @@ def generate_signal_comment(symbol: str, name_kr: str, action: str, score: int,
         return None
 
 
-__all__ = ["BaseLLM", "get_llm", "is_available", "generate_signal_comment"]
+def analyze_news_for_stock(
+    name_kr: str,
+    symbol: str,
+    action: str,
+    score: int,
+    headlines: list[dict],
+) -> str | None:
+    """뉴스 헤드라인 + 기술적 시그널을 종합해 2-3 문장 한국어 평가.
+
+    headlines: [{"title", "link", "published", "source"}]
+    """
+    llm = get_llm()
+    if llm is None or not headlines:
+        return None
+    bullets = "\n".join(
+        f"- {h['title']} ({h.get('source','')})" for h in headlines[:5]
+    )
+    prompt = (
+        f"종목 {name_kr}({symbol}) 의 오늘자 상황:\n"
+        f"- 기술적 시그널: {action} (점수 {score:+d})\n"
+        f"- 최근 뉴스 헤드라인:\n{bullets}\n\n"
+        "위 뉴스가 기술적 시그널과 일치하는지, 단기적으로 호재/악재 요인은 무엇인지 "
+        "한국어 2-3 문장으로 객관적으로 정리해 주세요. "
+        "투자 권유 표현은 피하고, 가능성과 리스크를 균형있게 다루세요. "
+        "면책 문구는 생략."
+    )
+    try:
+        return llm.generate(prompt, max_tokens=320).strip()
+    except Exception:
+        return None
+
+
+__all__ = [
+    "BaseLLM", "get_llm", "is_available",
+    "generate_signal_comment", "analyze_news_for_stock",
+]
