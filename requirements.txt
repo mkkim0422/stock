@@ -13,3 +13,6 @@ tenacity>=8.3
 pykrx>=1.0.45
 yfinance>=0.2.40
 finance-datareader>=0.9.90
+# Turso libSQL (클라우드 DB) — Streamlit Cloud Python 3.11/3.12 에서만 설치.
+# 로컬 Python 3.13+ 에는 호환 wheel 없어 자동 제외 (로컬은 SQLite 사용).
+libsql_client>=0.3.1; python_version < "3.13"
