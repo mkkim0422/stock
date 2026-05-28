@@ -124,10 +124,16 @@ for i, sym in enumerate(watched, start=1):
     df = _fetch(sym)
     hits = search_symbols(sym, limit=1)
     name_kr = (hits[0].name_kr or hits[0].name) if hits else sym
-    if df.empty or len(df) < 60:
+    if df.empty:
         results.append({
             "code": sym, "name": name_kr, "score": None,
-            "action": "—", "reason": "데이터가 부족해요 (60일 미만)",
+            "action": "—", "reason": "데이터를 가져오지 못했어요 (네트워크/라이브러리 오류)",
+            "df": df,
+        })
+    elif len(df) < 60:
+        results.append({
+            "code": sym, "name": name_kr, "score": None,
+            "action": "—", "reason": f"히스토리 부족 ({len(df)}일, 60일 필요)",
             "df": df,
         })
     else:
