@@ -17,14 +17,15 @@ from plotly.subplots import make_subplots
 
 from src.indicators import macd, rsi, sma
 from src.symbols import Symbol, search_symbols
-from src.ui.components import render_disclaimer, render_sidebar
+from src.ui.components import inject_css, render_disclaimer, render_sidebar
 from src.ui.components.kpi_card import fmt_krw, fmt_usd
 
-st.set_page_config(page_title="종목 · swing-advisor", page_icon="🔍", layout="wide")
+st.set_page_config(page_title="종목 찾기 · swing-advisor", page_icon="🔍", layout="wide")
+inject_css()
 render_sidebar()
 
-st.title("🔍 종목")
-st.caption("티커·영문·한글명 검색 후 차트와 지표를 확인할 수 있습니다.")
+st.markdown("## 🔍 종목 찾기")
+st.caption("종목명·코드·영문명으로 검색해 차트와 지표를 확인해 보세요.")
 
 
 @st.cache_data(ttl=900, show_spinner=False)

@@ -19,16 +19,17 @@ from src.collectors import fetch_ohlcv
 from src.collectors.mock import MockCollector
 from src.storage import apply_migrations
 from src.symbols import search_symbols
-from src.ui.components import render_disclaimer, render_sidebar
+from src.ui.components import inject_css, render_disclaimer, render_sidebar
 
-st.set_page_config(page_title="백테스트 · swing-advisor", page_icon="🧪", layout="wide")
+st.set_page_config(page_title="전략 검증 · swing-advisor", page_icon="🧪", layout="wide")
+inject_css()
 apply_migrations()
 render_sidebar()
 
-st.title("🧪 백테스트")
+st.markdown("## 🧪 전략 검증")
 st.caption(
-    "시그널 엔진의 과거 성과를 시뮬레이션합니다. 거래비용(수수료+거래세+슬리피지) 포함. "
-    "look-ahead 가드 적용. **과거 성과는 미래를 보장하지 않습니다.**"
+    "시그널 전략이 과거 데이터에서 얼마나 잘 작동했는지 시뮬레이션해요 (전문가용). "
+    "거래비용 모두 포함. **과거 성과는 미래를 보장하지 않습니다.**"
 )
 
 

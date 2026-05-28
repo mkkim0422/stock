@@ -9,12 +9,14 @@ if str(_ROOT) not in _sys.path:
 
 import streamlit as st
 
-from src.ui.components import render_disclaimer, render_sidebar
+from src.ui.components import inject_css, render_disclaimer, render_sidebar
 
 st.set_page_config(page_title="도움말 · swing-advisor", page_icon="❓", layout="wide")
+inject_css()
 render_sidebar()
 
-st.title("❓ 도움말")
+st.markdown("## ❓ 도움말")
+st.caption("자주 묻는 질문과 면책 전문.")
 
 st.markdown("### 자주 묻는 질문")
 with st.expander("이 도구는 실제로 주식을 사주나요?"):

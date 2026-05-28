@@ -14,13 +14,15 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.ui.components import render_disclaimer, render_sidebar
+from src.ui.components import inject_css, render_disclaimer, render_sidebar
+from src.ui.components.toss_style import COLOR_BORDER, COLOR_BRAND, COLOR_SUBTLE
 
-st.set_page_config(page_title="시장 · swing-advisor", page_icon="📈", layout="wide")
+st.set_page_config(page_title="오늘의 시장 · swing-advisor", page_icon="📈", layout="wide")
+inject_css()
 render_sidebar()
 
-st.title("📈 시장")
-st.caption("주요 지수 현황 — 실데이터 (FinanceDataReader)")
+st.markdown("## 📈 오늘의 시장")
+st.caption("한국·미국 주요 지수의 오늘 현황과 6개월 추이.")
 
 
 INDEX_DEFS = [
@@ -82,14 +84,19 @@ for tab, (code, name, _market) in zip(tabs, INDEX_DEFS, strict=True):
                 x=df.index,
                 y=df["close"],
                 mode="lines",
-                line=dict(color="#1f77b4", width=2),
+                line=dict(color=COLOR_BRAND, width=2.5),
+                fill="tozeroy",
+                fillcolor="rgba(49,130,246,0.06)",
                 name=name,
                 hovertemplate="%{x}<br>%{y:,.2f}<extra></extra>",
             )
         )
         fig.update_layout(
-            height=380, margin=dict(l=20, r=20, t=20, b=20),
-            xaxis_title="날짜", yaxis_title=name,
+            height=380, margin=dict(l=10, r=10, t=20, b=20),
+            plot_bgcolor="white", paper_bgcolor="white",
+            xaxis=dict(showgrid=False, color=COLOR_SUBTLE),
+            yaxis=dict(showgrid=True, gridcolor=COLOR_BORDER, color=COLOR_SUBTLE, tickformat=","),
+            showlegend=False,
         )
         st.plotly_chart(fig, use_container_width=True)
 

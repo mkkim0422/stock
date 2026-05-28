@@ -20,14 +20,15 @@ from src.notifications import send_message as _tg_send
 from src.storage import get_db_path
 from src.storage.cloud import get_status as get_cloud_status
 from src.symbols import get_last_refresh, refresh_kr_from_krx, set_last_refresh
-from src.ui.components import render_disclaimer, render_sidebar
+from src.ui.components import inject_css, render_disclaimer, render_sidebar
 from src.utils.timezone import to_kst
 
 st.set_page_config(page_title="설정 · swing-advisor", page_icon="⚙️", layout="wide")
+inject_css()
 render_sidebar()
 
-st.title("⚙️ 설정")
-st.caption("환경변수는 `.env` 또는 Streamlit Cloud Secrets 에서 변경.")
+st.markdown("## ⚙️ 설정")
+st.caption("환경·연결·외부 키 상태를 확인하고 종목 마스터를 갱신할 수 있어요.")
 
 settings = get_settings()
 

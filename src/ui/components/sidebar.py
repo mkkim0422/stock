@@ -1,4 +1,4 @@
-"""사이드바 — 모드, 평가액, 시장상태, 갱신시각 (모든 페이지 동일)."""
+"""사이드바 — 토스 스타일 자산 요약 (모든 페이지 동일)."""
 from __future__ import annotations
 
 import streamlit as st
@@ -11,30 +11,75 @@ from src.utils.market_hours import kr_status, status_label, us_status
 from src.utils.timezone import now_kst
 
 
+def _market_dot(status: str) -> str:
+    s = status.lower()
+    if "open" in s or "정규" in s or "장중" in s:
+        return "🟢"
+    if "pre" in s or "after" in s or "동시호가" in s:
+        return "🟡"
+    return "⚫"
+
+
 def render_sidebar() -> None:
     apply_migrations()
     settings = get_settings()
     e = evaluate()
     now = now_kst()
+    ret = float(e["cum_return_pct"])
 
     with st.sidebar:
-        st.markdown("### 📊 swing-advisor")
-        st.caption(f"모드: **{settings.mode}** (페이퍼 전용)")
-        st.markdown("---")
+        st.markdown(
+            "<div style='padding:6px 4px 16px 4px;'>"
+            "<div style='font-size:18px; font-weight:800; letter-spacing:-0.02em;'>📊 swing-advisor</div>"
+            f"<div style='font-size:12px; color:#6B7684; margin-top:2px;'>모드: {settings.mode} · 페이퍼 전용</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
 
-        # 시장 상태 (모든 페이지에 노출)
-        st.markdown("**🕒 시장 상태**")
-        st.caption(f"🇰🇷 KR: {status_label(kr_status(now))}")
-        st.caption(f"🇺🇸 US: {status_label(us_status(now))}")
-        st.markdown("---")
+        # 내 자산 카드
+        ret_cls = "toss-up" if ret >= 0 else "toss-down"
+        ret_sign = "+" if ret >= 0 else ""
+        st.markdown(
+            f"""
+<div class="toss-card-tight">
+  <p class="toss-label">내 평가 총액 (KRW 환산)</p>
+  <p class="toss-value-md">{fmt_krw(float(e['total_value_krw']))}</p>
+  <p class="toss-sub {ret_cls}">{ret_sign}{fmt_pct(ret)} (누적)</p>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
 
-        st.markdown("**💰 자산**")
-        st.write(f"KRW: {fmt_krw(float(e['cash_krw']))}")
-        st.write(f"USD: {fmt_usd(float(e['cash_usd']))}")
-        st.write(f"환산 총액: {fmt_krw(float(e['total_value_krw']))}")
-        ret = float(e["cum_return_pct"])
-        color = "🟢" if ret >= 0 else "🔴"
-        st.write(f"누적 수익률: {color} {fmt_pct(ret)}")
-        st.markdown("---")
-        st.caption(f"갱신: {now.strftime('%Y-%m-%d %H:%M KST')}")
-        st.caption(f"환율: ₩{float(e['fx_rate']):,.0f}/USD")
+        # 보유 현금
+        st.markdown(
+            f"""
+<div class="toss-card-tight">
+  <p class="toss-label">보유 현금</p>
+  <div style="display:flex; justify-content:space-between; align-items:baseline;">
+    <span class="toss-value-md">{fmt_krw(float(e['cash_krw']))}</span>
+    <span class="toss-sub">{fmt_usd(float(e['cash_usd']))}</span>
+  </div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
+        # 시장 상태
+        kr = kr_status(now)
+        us = us_status(now)
+        st.markdown(
+            f"""
+<div class="toss-card-tight">
+  <p class="toss-label">시장 상태</p>
+  <div style="font-size:13px; line-height:1.8;">
+    {_market_dot(str(kr))} 🇰🇷 한국 · <span style="color:#6B7684">{status_label(kr)}</span><br/>
+    {_market_dot(str(us))} 🇺🇸 미국 · <span style="color:#6B7684">{status_label(us)}</span>
+  </div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
+        st.caption(
+            f"환율 ₩{float(e['fx_rate']):,.0f}/USD · {now.strftime('%m-%d %H:%M KST')}"
+        )
