@@ -1,9 +1,9 @@
 name: lint
 
+# PR 에서만 실행. master 직접 푸시에는 실행 안 함 — 알림 메일 방지.
 on:
-  push:
-    branches: ["**"]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   ruff-mypy:
