@@ -70,11 +70,12 @@ if selected is None:
 
 c1, c2, c3 = st.columns(3)
 with c1:
+    # 캘린더일 → 영업일 약 0.7배. 백테스트는 MA200 워밍업(200일) + 의미있는 평가기간 필요.
     days = st.selectbox(
         "데이터 기간",
-        [365, 730, 1095, 1825],
-        format_func=lambda d: f"{d // 365}년",
-        index=1,
+        [730, 1095, 1825, 3650],
+        format_func=lambda d: {730: "2년 (권장 최소)", 1095: "3년", 1825: "5년", 3650: "10년"}[d],
+        index=0,
     )
 with c2:
     mode = st.radio("검증 모드", ["전체", "OOS 분할 (70/30)"], horizontal=True)
@@ -86,14 +87,27 @@ with c3:
     )
 
 if not go_btn:
+    st.caption(
+        "💡 백테스트는 MA200 워밍업으로 200 영업일이 필요합니다. "
+        "의미있는 평가를 위해 **2년 이상** 권장. 1년은 워밍업 후 평가 구간이 너무 짧아 제외했어요."
+    )
     render_disclaimer()
     st.stop()
 
-with st.spinner(f"데이터 로딩 (최근 {days}일)..."):
-    df = _fetch(selected.symbol, days)
+# 영업일 250 이상 확보를 위해 캘린더일을 1.5배로 fetch (주말·공휴일 제외)
+fetch_days = int(days * 1.5)
+with st.spinner(f"데이터 로딩 (캘린더 {fetch_days}일, 영업일 약 {fetch_days*7//10}일)..."):
+    df = _fetch(selected.symbol, fetch_days)
 
-if df.empty or len(df) < 250:
-    st.error("데이터 부족 (250봉 이상 필요). 더 긴 기간 또는 다른 종목.")
+if df.empty:
+    st.error("데이터를 가져오지 못했어요. 다른 종목을 시도해 보세요.")
+    render_disclaimer()
+    st.stop()
+if len(df) < 250:
+    st.error(
+        f"데이터 부족 ({len(df)}봉, 최소 250봉 필요). "
+        "더 긴 기간을 고르거나 상장 더 오래된 종목을 선택하세요."
+    )
     render_disclaimer()
     st.stop()
 
