@@ -313,10 +313,11 @@ if run:
     if not candidates:
         st.error("시총 목록 수신 실패. 잠시 후 다시 시도해 주세요.")
     else:
-        st.success(f"{len(candidates)}개 종목 1차 스크리닝 시작 (예상 {len(candidates)*2//60+1}분).")
-        # 1차: 기술 점수만
+        st.success(f"{len(candidates)}개 종목 분석 시작 (예상 {len(candidates)*2//60+1}분).")
+
+        # 1단계: 기술 점수 — 모든 종목
         scored: list[dict] = []
-        prog = st.progress(0.0, text="1단계: 기술 스크리닝 중...")
+        prog = st.progress(0.0, text="1단계: 기술 분석 중...")
         for i, c in enumerate(candidates, start=1):
             r = _technical_only(c["symbol"], c["name"] or c["symbol"])
             scored.append(r)
@@ -324,53 +325,62 @@ if run:
                 prog.progress(i / len(candidates), text=f"{c['name']} ({i}/{len(candidates)})")
         prog.empty()
 
-        # 후보 추출 — BUY/SELL 액션
-        passed = [r for r in scored if r.get("ok") and r.get("tech_action") in ("BUY", "SELL")]
-        passed.sort(key=lambda r: abs(r["tech_score"]), reverse=True)
+        # 데이터 OK 인 종목 모두 — 액션 무관
+        ok = [r for r in scored if r.get("ok")]
 
-        # 2차: 상위 20개에 펀더+거시+LLM
-        top_for_full = passed[:20]
+        # 2단계: 종합 점수 (펀더+거시) — 전체 OK 종목에 적용 (캐시 빠름)
+        prog2 = st.progress(0.0, text="2단계: 펀더멘털·거시 평가 중...")
         full_results: list[dict] = []
-        if top_for_full:
-            prog2 = st.progress(0.0, text="2단계: 펀더멘털·거시·뉴스 LLM 분석 중...")
-            llm_on = llm_available()
-            for i, r in enumerate(top_for_full, start=1):
-                full_results.append(_comprehensive(r, with_llm=llm_on))
-                prog2.progress(i / len(top_for_full), text=f"{r['name']} ({i}/{len(top_for_full)})")
-            prog2.empty()
-
-        # 나머지는 기술 점수만으로 표시
-        rest = passed[20:]
-        for r in rest:
+        for i, r in enumerate(ok, start=1):
             full_results.append(_comprehensive(r, with_llm=False))
+            if i % 5 == 0 or i == len(ok):
+                prog2.progress(i / len(ok), text=f"{r['name']} ({i}/{len(ok)})")
+        prog2.empty()
 
-        # 미통과 (HOLD, 데이터 부족)
-        not_pass = [r for r in scored if r not in passed]
+        # 종합 점수로 정렬
+        full_results.sort(key=lambda r: r["composite"].total, reverse=True)
 
+        # 3단계: 상위 10 + 하위 10 (총 20개) 에 LLM 뉴스 분석 추가
+        llm_on = llm_available()
+        if llm_on:
+            top_for_llm = full_results[:10] + full_results[-10:]
+            prog3 = st.progress(0.0, text="3단계: 뉴스 + LLM 이슈 분석 (상위·하위 20개)...")
+            for i, r in enumerate(top_for_llm, start=1):
+                idx = full_results.index(r)
+                full_results[idx] = _comprehensive(r, with_llm=True)
+                prog3.progress(i / len(top_for_llm), text=f"{r['name']} ({i}/{len(top_for_llm)})")
+            prog3.empty()
+
+        not_ok = [r for r in scored if not r.get("ok")]
         st.session_state["scan_full"] = full_results
-        st.session_state["scan_others"] = not_pass
-        st.session_state["scan_meta"] = {"top_n": top_n, "passed": len(passed)}
+        st.session_state["scan_others"] = not_ok
+        st.session_state["scan_meta"] = {"top_n": top_n, "analyzed": len(full_results)}
 
 
 if "scan_full" in st.session_state:
-    results = st.session_state["scan_full"]
+    results: list[dict] = st.session_state["scan_full"]  # 이미 composite.total 내림차순
     meta = st.session_state.get("scan_meta", {})
+    others = st.session_state.get("scan_others", [])
 
-    buys = [r for r in results if r["composite"].action in ("BUY", "STRONG_BUY")]
-    sells = [r for r in results if r["composite"].action in ("SELL", "STRONG_SELL")]
-    others_passed = [r for r in results if r["composite"].action == "HOLD"]
+    # 상위 10개 = 추천 매수 / 하위 10개 = 추천 매도 (점수 부호 무관 — 항상 표시)
+    top_buys = [r for r in results[:10] if r["composite"].total > -3]
+    top_sells = [r for r in list(reversed(results))[:10] if r["composite"].total < 3]
+    middle = [r for r in results if r not in top_buys and r not in top_sells]
 
-    buys.sort(key=lambda r: r["composite"].total, reverse=True)
-    sells.sort(key=lambda r: r["composite"].total)
+    # 라벨 분포 카운트
+    sb = sum(1 for r in results if r["composite"].action == "STRONG_BUY")
+    b  = sum(1 for r in results if r["composite"].action == "BUY")
+    s  = sum(1 for r in results if r["composite"].action == "SELL")
+    ss = sum(1 for r in results if r["composite"].action == "STRONG_SELL")
 
     st.markdown(f"### 📊 종합 분석 결과 — 시총 TOP {meta.get('top_n')}")
     c1, c2, c3, c4 = st.columns(4)
     for col, (lab, val, cls) in zip(
         (c1, c2, c3, c4),
-        (("종합 매수 후보", len(buys), "toss-up"),
-         ("종합 매도 후보", len(sells), "toss-down"),
-         ("종합 보류", len(others_passed) + len(st.session_state.get("scan_others", [])), "toss-neutral"),
-         ("1차 통과", meta.get("passed", 0), "")),
+        (("강한 매수", sb, "toss-up"),
+         ("매수", b, "toss-up"),
+         ("매도", s, "toss-down"),
+         ("강한 매도", ss, "toss-down")),
         strict=True,
     ):
         with col:
@@ -380,31 +390,39 @@ if "scan_full" in st.session_state:
                 unsafe_allow_html=True,
             )
 
-    if buys:
-        st.markdown(f"#### 🟢 매수 후보 {len(buys)}개")
-        for r in buys:
+    st.caption(
+        f"분석 완료 {len(results)}개 · 데이터 부족 {len(others)}개. "
+        "임계값(BUY ≥+6 / SELL ≤-3)에 도달 못한 종목도 **상대 점수 상위**라면 아래 표시."
+    )
+
+    if top_buys:
+        st.markdown(f"#### 🟢 오늘의 매수 후보 TOP {len(top_buys)} (종합 점수 높은 순)")
+        for r in top_buys:
             _render_card(r, is_buy=True)
-    if sells:
-        st.markdown(f"#### 🔴 매도 후보 {len(sells)}개")
-        for r in sells:
+    if top_sells:
+        st.markdown(f"#### 🔴 오늘의 매도/주의 TOP {len(top_sells)} (종합 점수 낮은 순)")
+        for r in top_sells:
             _render_card(r, is_buy=False)
 
-    with st.expander(f"⚪ 종합 보류·미통과 ({len(others_passed)+len(st.session_state.get('scan_others', []))}개)"):
-        rows = []
-        for r in others_passed:
-            rows.append({
-                "종목": f"{r['name']} ({r['code']})",
-                "종합점수": f"{r['composite'].total:+d}",
-                "액션": r["composite"].action,
-            })
-        for r in st.session_state.get("scan_others", []):
-            rows.append({
-                "종목": f"{r['name']} ({r['code']})",
-                "종합점수": "—",
-                "액션": r.get("reason", "—"),
-            })
+    with st.expander(f"⚪ 중간 점수 종목 ({len(middle)}개)", expanded=False):
+        rows = [{
+            "종목": f"{r['name']} ({r['code']})",
+            "종합점수": f"{r['composite'].total:+d}",
+            "액션": r["composite"].action,
+            "기술": f"{r['composite'].technical:+d}",
+            "펀더": f"{r['composite'].fundamental:+d}",
+            "거시": f"{r['composite'].macro:+d}",
+        } for r in middle]
         if rows:
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+    if others:
+        with st.expander(f"❌ 데이터 부족·실패 ({len(others)}개)", expanded=False):
+            rows2 = [{
+                "종목": f"{r['name']} ({r['code']})",
+                "사유": r.get("reason", "—"),
+            } for r in others]
+            st.dataframe(pd.DataFrame(rows2), use_container_width=True, hide_index=True)
 else:
     st.markdown(
         """

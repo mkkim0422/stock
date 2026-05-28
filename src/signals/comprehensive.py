@@ -41,13 +41,18 @@ class CompositeScore:
 
 
 def _decide(total: int) -> CompositeAction:
-    if total >= 14:
+    """완화된 임계값 — 발견 모드.
+
+    BUY +6 / STRONG_BUY +12 / SELL -3 / STRONG_SELL -8.
+    "신뢰도 높은 시그널"이 아니라 "오늘 상대적으로 좋아 보이는 종목"을 식별하는 게 목적.
+    """
+    if total >= 12:
         return "STRONG_BUY"
-    if total >= 10:
+    if total >= 6:
         return "BUY"
-    if total <= -10:
+    if total <= -8:
         return "STRONG_SELL"
-    if total <= -5:
+    if total <= -3:
         return "SELL"
     return "HOLD"
 
