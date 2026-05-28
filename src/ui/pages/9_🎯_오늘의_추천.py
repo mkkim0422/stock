@@ -1,4 +1,4 @@
-"""🎯 오늘의 추천 — 시장 전체 스캔 + 뉴스 이슈 + 포지션 사이징 (토스 스타일)."""
+"""🎯 오늘의 추천 — 기술 + 펀더멘털 + 거시 + 뉴스 종합 분석 (토스 스타일)."""
 from __future__ import annotations
 
 import sys as _sys
@@ -14,24 +14,25 @@ import pandas as pd
 import streamlit as st
 
 from src.collectors import fetch_ohlcv
+from src.collectors.fundamentals import get as get_fund
 from src.collectors.kr import top_market_cap_kr
+from src.collectors.macro import context_snapshot
 from src.collectors.mock import MockCollector
 from src.collectors.news import fetch_headlines
-from src.llm import analyze_news_for_stock, generate_signal_comment
-from src.llm import is_available as llm_available
+from src.llm import (
+    analyze_news_for_stock,
+    is_available as llm_available,
+    score_news_sentiment,
+)
 from src.paper.performance import evaluate as _eval_portfolio
 from src.paper.portfolio import get_position
 from src.paper.sizing import suggest_buy, suggest_sell
-from src.signals import evaluate as eval_signal_only
-from src.signals import evaluate_and_persist
+from src.signals import evaluate as eval_signal
+from src.signals.comprehensive import evaluate_composite
 from src.storage import apply_migrations
 from src.symbols import search_symbols
 from src.symbols.watchlist import add, list_all, remove
-from src.ui.components import (
-    inject_css,
-    render_disclaimer,
-    render_sidebar,
-)
+from src.ui.components import inject_css, render_disclaimer, render_sidebar
 
 st.set_page_config(page_title="오늘의 추천 · swing-advisor", page_icon="🎯", layout="wide")
 
@@ -41,15 +42,39 @@ render_sidebar()
 
 st.markdown("## 🎯 오늘의 추천")
 st.caption(
-    "한국 시가총액 상위 종목을 10가지 기술 지표로 자동 분석하고, "
-    "상위 후보에는 **오늘자 뉴스 이슈**까지 LLM 으로 종합 평가해드려요. "
+    "한국 시가총액 상위 종목을 **기술·펀더멘털·거시·뉴스 4축**으로 자동 분석. "
     "참고용이며 매매 권유가 아닙니다."
 )
 
 
-# ─── 데이터 helpers ──────────────────────────────────────
+# ─── 거시 환경 한 줄 표시 ───────────────────────────────
+@st.cache_data(ttl=1800, show_spinner=False)
+def _ctx() -> dict:
+    return context_snapshot()
+
+
+with st.expander("🌐 오늘의 거시 환경", expanded=False):
+    ctx = _ctx()
+    cols = st.columns(len(ctx))
+    for col, (name, c) in zip(cols, ctx.items(), strict=True):
+        with col:
+            val = f"{c['value']:,.2f}" if c["value"] else "—"
+            ret5 = c.get("ret_5d")
+            sub = f"{ret5:+.2f}% (5일)" if ret5 is not None else ""
+            cls = ""
+            if ret5 is not None:
+                cls = "toss-up" if ret5 >= 0 else "toss-down"
+            st.markdown(
+                f"<div class='toss-card-tight'><p class='toss-label'>{name}</p>"
+                f"<p class='toss-value-md'>{val}</p>"
+                f"<p class='toss-sub {cls}'>{sub}</p></div>",
+                unsafe_allow_html=True,
+            )
+
+
+# ─── helpers ──────────────────────────────────────────
 @st.cache_data(ttl=300, show_spinner=False)
-def _fetch_one(symbol: str, days: int = 250) -> pd.DataFrame:
+def _fetch_ohlcv(symbol: str, days: int = 250) -> pd.DataFrame:
     if os.environ.get("USE_MOCK") == "1":
         try:
             return MockCollector().fetch_ohlcv(
@@ -74,221 +99,202 @@ def _news(query: str, limit: int = 5) -> list[dict]:
 
 
 @st.cache_data(ttl=900, show_spinner=False)
-def _llm_signal(sym: str, name: str, action: str, score: int) -> str | None:
-    df = _fetch_one(sym)
-    if df.empty:
+def _llm_sentiment(name: str, sym: str) -> tuple[int, str] | None:
+    heads = _news(name, limit=5)
+    if not heads:
         return None
-    try:
-        sig = eval_signal_only(sym, df)
-        return generate_signal_comment(sym, name, sig.action, sig.score, sig.components)
-    except Exception:
-        return None
+    return score_news_sentiment(name, sym, heads)
 
 
 @st.cache_data(ttl=900, show_spinner=False)
-def _llm_issue(sym: str, name: str, action: str, score: int) -> tuple[str | None, list[dict]]:
+def _llm_issue_text(sym: str, name: str, action: str, score: int) -> tuple[str | None, list[dict]]:
     heads = _news(name, limit=5)
     if not heads:
         return None, []
     return analyze_news_for_stock(name, sym, action, score, heads), heads
 
 
-def _evaluate_one(sym: str, name: str) -> dict:
-    df = _fetch_one(sym)
+def _technical_only(sym: str, name: str) -> dict:
+    """1차 빠른 스크리닝 — 기술 점수만 (펀더/거시/뉴스 X). 500개 스캔용."""
+    df = _fetch_ohlcv(sym)
     if df.empty:
-        return {"code": sym, "name": name, "score": None, "action": "—",
-                "price": None, "reason": "데이터 못 가져옴"}
+        return {"code": sym, "name": name, "ok": False, "reason": "데이터 못 가져옴"}
     if len(df) < 60:
-        return {"code": sym, "name": name, "score": None, "action": "—",
-                "price": float(df.iloc[-1]["close"]),
-                "reason": f"히스토리 부족 ({len(df)}일)"}
+        return {"code": sym, "name": name, "ok": False, "reason": f"히스토리 부족 ({len(df)}일)"}
     try:
-        sig = evaluate_and_persist(sym, df)
-        top = sorted(
-            ((n_, c["score"], c["reason"]) for n_, c in sig.components.items() if c["score"] != 0),
-            key=lambda x: abs(x[1]),
-            reverse=True,
-        )[:3]
-        reason = " · ".join(f"{n_} {s:+d}" for n_, s, _ in top) or "전 항목 중립"
+        sig = eval_signal(sym, df)
         return {
-            "code": sym, "name": name, "score": sig.score, "action": sig.action,
-            "price": float(df.iloc[-1]["close"]), "reason": reason,
+            "code": sym, "name": name, "ok": True,
+            "tech_score": sig.score, "tech_action": sig.action, "tech_sig": sig,
+            "price": float(df.iloc[-1]["close"]),
         }
     except Exception as e:
-        return {"code": sym, "name": name, "score": None, "action": "—",
-                "price": None, "reason": f"분석 오류: {e}"}
+        return {"code": sym, "name": name, "ok": False, "reason": f"분석 오류: {e}"}
 
 
-# ─── 카드 렌더링 ─────────────────────────────────────────
+def _comprehensive(r: dict, with_llm: bool) -> dict:
+    """기술 결과에 펀더멘털 + 거시 + (선택) LLM 센티먼트 추가."""
+    sym = r["code"]
+    name = r["name"]
+    fund = get_fund(sym)
+    sent_score, sent_reason = 0, ""
+    if with_llm:
+        s = _llm_sentiment(name, sym)
+        if s:
+            sent_score, sent_reason = s
+    comp = evaluate_composite(
+        symbol=sym,
+        technical=r["tech_sig"],
+        fundamental=fund,
+        sentiment_score=sent_score,
+        sentiment_reason=sent_reason,
+    )
+    return {**r, "fund": fund, "composite": comp}
+
+
+# ─── 카드 ──────────────────────────────────────────────
 def _market_label(code: str) -> str:
     return "KR" if code.isdigit() and len(code) == 6 else "US"
 
 
-def _render_card(r: dict, kind: str, llm_pack: tuple | None) -> None:
-    """kind: 'buy' | 'sell'"""
-    is_buy = kind == "buy"
-    score = r["score"]
-    name = r["name"] or r["code"]
-    code = r["code"]
-    market = _market_label(code)
-    price = r.get("price")
+def _comp_badge(action: str) -> str:
+    return {
+        "STRONG_BUY": "<span class='toss-badge toss-badge-buy'>강한 매수 후보</span>",
+        "BUY":        "<span class='toss-badge toss-badge-buy'>매수 후보</span>",
+        "HOLD":       "<span class='toss-badge toss-badge-hold'>보류</span>",
+        "SELL":       "<span class='toss-badge toss-badge-sell'>매도 후보</span>",
+        "STRONG_SELL":"<span class='toss-badge toss-badge-sell'>강한 매도 후보</span>",
+    }.get(action, "")
 
-    badge_text = "매수 후보" if is_buy else "매도 후보"
-    badge_cls = "toss-badge-buy" if is_buy else "toss-badge-sell"
+
+def _render_card(r: dict, is_buy: bool) -> None:
+    comp = r["composite"]
+    fund = r.get("fund") or {}
+    code = r["code"]
+    name = r["name"] or code
+    price = r.get("price")
+    market = _market_label(code)
     score_cls = "toss-up" if is_buy else "toss-down"
-    score_str = f"+{score}" if score and score > 0 else str(score)
+    score_str = f"+{comp.total}" if comp.total > 0 else str(comp.total)
+
+    # 펀더멘털 요약
+    per = fund.get("per")
+    pbr = fund.get("pbr")
+    cap = fund.get("market_cap") or 0
+    industry = fund.get("industry") or fund.get("sector") or ""
+    fund_line_parts = []
+    if industry:
+        fund_line_parts.append(industry)
+    if cap >= 1e12:
+        fund_line_parts.append(f"시총 {cap/1e12:.1f}조")
+    elif cap > 0:
+        fund_line_parts.append(f"시총 {cap/1e8:,.0f}억")
+    if per is not None and per > 0:
+        fund_line_parts.append(f"PER {per:.1f}")
+    if pbr is not None and pbr > 0:
+        fund_line_parts.append(f"PBR {pbr:.2f}")
+    fund_line = " · ".join(fund_line_parts) if fund_line_parts else "—"
 
     # 포지션 사이징
     sizing_html = ""
     if is_buy and price:
         e = _eval_portfolio()
-        cash = float(e["cash_krw"])
         sug = suggest_buy(
-            score=score, price=price, cash_available_krw=cash,
+            score=max(8, comp.total),  # composite을 buy 점수로 변환
+            price=price, cash_available_krw=float(e["cash_krw"]),
             fx_rate_krw_per_usd=float(e["fx_rate"]), market=market,
         )
         if sug:
             sizing_html = (
                 f'<div class="toss-card-tight" style="background:#F1F7FF; border-color:#D6E6FF; margin-top:10px;">'
-                f'<p class="toss-label" style="color:#1B64DA;">💰 추천 수량</p>'
+                f'<p class="toss-label" style="color:#1B64DA;">💰 추천 매수 수량</p>'
                 f'<p class="toss-value-md" style="color:#1B64DA;">{sug["qty"]:,} 주</p>'
                 f'<p class="toss-sub" style="margin-top:4px;">'
                 f'약 ₩{sug["notional_krw"]:,.0f} · 가용 현금의 {sug["pct_of_cash"]:.0f}%'
                 f'</p></div>'
             )
-    elif (not is_buy) and price:
+    elif not is_buy and price:
         pos = get_position(code)
         held = pos[0] if pos else 0
         if held > 0:
-            sug = suggest_sell(score=score, holding_qty=held)
+            sug = suggest_sell(score=min(-3, comp.total), holding_qty=held)
             if sug:
                 sizing_html = (
                     f'<div class="toss-card-tight" style="background:#FEF2F2; border-color:#FECACA; margin-top:10px;">'
                     f'<p class="toss-label" style="color:#DC2626;">💸 추천 매도 수량</p>'
                     f'<p class="toss-value-md" style="color:#DC2626;">{sug["qty"]:,} 주</p>'
                     f'<p class="toss-sub" style="margin-top:4px;">'
-                    f'보유 {held:,}주 중 {sug["pct_of_holding"]:.0f}%'
-                    f'</p></div>'
+                    f'보유 {held:,}주 중 {sug["pct_of_holding"]:.0f}%</p></div>'
                 )
         else:
-            sizing_html = (
-                '<p class="toss-sub" style="margin-top:8px;">현재 보유 없음 — 매도 대상 없음.</p>'
-            )
+            sizing_html = '<p class="toss-sub" style="margin-top:8px;">보유 없음 — 매도 대상 아님.</p>'
 
-    # 시그널 코멘트
-    signal_comment = None
-    issue_comment = None
-    headlines: list[dict] = []
-    if llm_pack:
-        signal_comment, (issue_comment, headlines) = llm_pack
-    comment = signal_comment or f"📐 점수 근거: {r['reason']}"
-    issue_block = ""
-    if issue_comment:
+    # 점수 분해
+    breakdown_rows = ""
+    for cat, items in comp.breakdown.items():
+        if not items:
+            continue
+        sub = sum(it["score"] for it in items)
+        sub_cls = "toss-up" if sub > 0 else ("toss-down" if sub < 0 else "toss-neutral")
+        reasons = "<br/>".join(
+            f"&nbsp;&nbsp;• {it['name']} <b style='color:{'#FF4040' if it['score']>0 else '#3282F6' if it['score']<0 else '#8B95A1'}'>{it['score']:+d}</b> · {it['reason']}"
+            for it in items if it["score"] != 0
+        ) or "&nbsp;&nbsp;• 모두 중립"
+        breakdown_rows += (
+            f"<div style='margin-top:8px;'>"
+            f"<b style='font-size:13px;'>{cat}</b> "
+            f"<span class='{sub_cls}' style='font-weight:700;'>{sub:+d}</span>"
+            f"<div style='font-size:12px; color:#6B7684; margin-top:2px; line-height:1.7;'>{reasons}</div>"
+            f"</div>"
+        )
+
+    # 뉴스 이슈 텍스트
+    issue_html = ""
+    issue_text, heads = _llm_issue_text(code, name, comp.action, comp.total)
+    if issue_text:
         head_lines = ""
-        if headlines:
+        if heads:
             head_lines = '<ul style="margin:6px 0 0 16px; padding:0; font-size:12px; color:#6B7684;">'
-            for h in headlines[:3]:
+            for h in heads[:3]:
                 head_lines += f'<li>{h["title"]}</li>'
             head_lines += "</ul>"
-        issue_block = (
+        issue_html = (
             f'<div style="margin-top:10px; padding:10px 12px; background:#FFFBEB; '
             f'border:1px solid #FDE68A; border-radius:10px;">'
-            f'<p style="font-size:12px; color:#92400E; font-weight:600; margin:0;">📰 오늘자 이슈 분석</p>'
-            f'<p style="font-size:13px; color:#191F28; margin-top:4px; line-height:1.5;">{issue_comment}</p>'
-            f'{head_lines}'
-            f'</div>'
+            f'<p style="font-size:12px; color:#92400E; font-weight:600; margin:0;">📰 오늘자 뉴스 이슈</p>'
+            f'<p style="font-size:13px; color:#191F28; margin-top:4px; line-height:1.5;">{issue_text}</p>'
+            f'{head_lines}</div>'
         )
 
     price_str = f"₩{price:,.0f}" if price and market == "KR" else (f"${price:,.2f}" if price else "—")
-    html = f"""
+    head_html = f"""
 <div class="toss-rec-card">
   <div class="toss-rec-head">
     <div>
       <span class="toss-rec-name">{name}</span>
-      <span class="toss-rec-code">{code} · 현재가 {price_str}</span>
+      <span class="toss-rec-code">{code} · {price_str}</span>
     </div>
-    <div>
-      <span class="toss-rec-score {score_cls}">{score_str}점</span>
-    </div>
+    <div><span class="toss-rec-score {score_cls}">{score_str}점</span></div>
   </div>
-  <div><span class="toss-badge {badge_cls}">{badge_text}</span></div>
-  <p class="toss-rec-comment">{comment}</p>
-  {issue_block}
+  <div>{_comp_badge(comp.action)}</div>
+  <p class="toss-sub" style="margin-top:6px;">{fund_line}</p>
+  <div style="margin-top:8px; padding:10px 12px; background:#F9FAFB; border-radius:10px;">
+    {breakdown_rows}
+  </div>
+  {issue_html}
   {sizing_html}
 </div>
 """
-    st.markdown(html, unsafe_allow_html=True)
+    st.markdown(head_html, unsafe_allow_html=True)
 
 
-def _render_results(results: list[dict], title: str, llm_top_n: int = 10) -> None:
-    buy_n = sum(1 for r in results if r["action"] == "BUY")
-    sell_n = sum(1 for r in results if r["action"] == "SELL")
-    hold_n = sum(1 for r in results if r["action"] == "HOLD")
-    fail_n = sum(1 for r in results if r["action"] == "—")
-
-    st.markdown(f"### {title}")
-    c1, c2, c3, c4 = st.columns(4)
-    for col, (lab, val, cls) in zip(
-        (c1, c2, c3, c4),
-        (("매수 후보", buy_n, "toss-up"),
-         ("매도 후보", sell_n, "toss-down"),
-         ("보류", hold_n, "toss-neutral"),
-         ("분석 실패", fail_n, "")),
-        strict=True,
-    ):
-        with col:
-            st.markdown(
-                f"<div class='toss-card-tight'><p class='toss-label'>{lab}</p>"
-                f"<p class='toss-value-md {cls}'>{val}개</p></div>",
-                unsafe_allow_html=True,
-            )
-
-    llm_on = llm_available()
-    buys = sorted([r for r in results if r["action"] == "BUY"],
-                  key=lambda r: r["score"], reverse=True)
-    sells = sorted([r for r in results if r["action"] == "SELL"],
-                   key=lambda r: r["score"])
-
-    if buys:
-        st.markdown(f"#### 🟢 매수 후보 {len(buys)}개 (점수 높은 순)")
-        with st.spinner("상위 종목 뉴스 + LLM 이슈 분석 중..." if llm_on else "표시 중..."):
-            for i, r in enumerate(buys):
-                pack = None
-                if llm_on and i < llm_top_n:
-                    sc = _llm_signal(r["code"], r["name"], r["action"], r["score"])
-                    iss = _llm_issue(r["code"], r["name"], r["action"], r["score"])
-                    pack = (sc, iss)
-                _render_card(r, "buy", pack)
-
-    if sells:
-        st.markdown(f"#### 🔴 매도 후보 {len(sells)}개 (점수 낮은 순)")
-        with st.spinner("상위 종목 뉴스 + LLM 이슈 분석 중..." if llm_on else "표시 중..."):
-            for i, r in enumerate(sells):
-                pack = None
-                if llm_on and i < llm_top_n:
-                    sc = _llm_signal(r["code"], r["name"], r["action"], r["score"])
-                    iss = _llm_issue(r["code"], r["name"], r["action"], r["score"])
-                    pack = (sc, iss)
-                _render_card(r, "sell", pack)
-
-    others = [r for r in results if r["action"] in ("HOLD", "—")]
-    if others:
-        with st.expander(f"⚪ 보류·실패 ({len(others)}개)", expanded=False):
-            rows = [{
-                "종목": f"{r['name']} ({r['code']})",
-                "점수": f"{r['score']:+d}" if r["score"] is not None else "—",
-                "이유": r["reason"],
-            } for r in others]
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-
-
-# ─── ① 시장 전체 스캔 ────────────────────────────────────
-st.markdown("### 🔥 시장 전체에서 골라보기")
+# ─── 시장 전체 스캔 ─────────────────────────────────────
+st.markdown("### 🔥 시장 전체 분석")
 c_left, c_right = st.columns([2, 1])
 with c_left:
     st.caption(
-        "한국 시가총액 상위 종목을 자동 분석. 매수/매도 후보 **상위 10개**에 대해서는 "
-        "오늘자 뉴스를 검색해 LLM 이 이슈를 종합 평가하고, **추천 매수/매도 수량**도 표시해드려요."
+        "1단계: 시총 상위 N개 종목 기술 분석으로 1차 스크리닝 → "
+        "2단계: 후보 상위 20개에 펀더멘털·거시·뉴스 LLM 종합 평가 추가."
     )
 with c_right:
     top_n = st.selectbox(
@@ -299,47 +305,115 @@ with c_right:
         label_visibility="collapsed",
     )
 
-run_scan = st.button("🔄 시장 분석 실행", type="primary", use_container_width=True)
+run = st.button("🔄 시장 분석 실행", type="primary", use_container_width=True)
 
-if run_scan:
-    with st.spinner("시가총액 상위 종목 목록 가져오는 중..."):
+if run:
+    with st.spinner("시총 상위 목록 가져오는 중..."):
         candidates = _top_kr(top_n)
-
     if not candidates:
-        st.error(
-            "시가총액 상위 종목 목록을 가져오지 못했어요. 잠시 후 다시 시도해 주세요. "
-            "(데이터 소스 일시 장애일 수 있어요)"
-        )
+        st.error("시총 목록 수신 실패. 잠시 후 다시 시도해 주세요.")
     else:
-        st.success(f"{len(candidates)}개 종목 분석 시작 — {top_n}개 기준 약 {len(candidates)*2//60+1}분 예상.")
-        scan_results: list[dict] = []
-        prog = st.progress(0.0, text="분석 중...")
+        st.success(f"{len(candidates)}개 종목 1차 스크리닝 시작 (예상 {len(candidates)*2//60+1}분).")
+        # 1차: 기술 점수만
+        scored: list[dict] = []
+        prog = st.progress(0.0, text="1단계: 기술 스크리닝 중...")
         for i, c in enumerate(candidates, start=1):
-            r = _evaluate_one(c["symbol"], c["name"] or c["symbol"])
-            scan_results.append(r)
+            r = _technical_only(c["symbol"], c["name"] or c["symbol"])
+            scored.append(r)
             if i % 5 == 0 or i == len(candidates):
                 prog.progress(i / len(candidates), text=f"{c['name']} ({i}/{len(candidates)})")
         prog.empty()
-        st.session_state["scan_results"] = scan_results
-        st.session_state["scan_meta"] = {
-            "top_n": top_n,
-            "count": len(candidates),
-        }
 
-if "scan_results" in st.session_state:
-    _render_results(
-        st.session_state["scan_results"],
-        title=f"📊 시장 분석 결과 (TOP {st.session_state.get('scan_meta', {}).get('top_n', '?')})",
-        llm_top_n=10,
-    )
+        # 후보 추출 — BUY/SELL 액션
+        passed = [r for r in scored if r.get("ok") and r.get("tech_action") in ("BUY", "SELL")]
+        passed.sort(key=lambda r: abs(r["tech_score"]), reverse=True)
+
+        # 2차: 상위 20개에 펀더+거시+LLM
+        top_for_full = passed[:20]
+        full_results: list[dict] = []
+        if top_for_full:
+            prog2 = st.progress(0.0, text="2단계: 펀더멘털·거시·뉴스 LLM 분석 중...")
+            llm_on = llm_available()
+            for i, r in enumerate(top_for_full, start=1):
+                full_results.append(_comprehensive(r, with_llm=llm_on))
+                prog2.progress(i / len(top_for_full), text=f"{r['name']} ({i}/{len(top_for_full)})")
+            prog2.empty()
+
+        # 나머지는 기술 점수만으로 표시
+        rest = passed[20:]
+        for r in rest:
+            full_results.append(_comprehensive(r, with_llm=False))
+
+        # 미통과 (HOLD, 데이터 부족)
+        not_pass = [r for r in scored if r not in passed]
+
+        st.session_state["scan_full"] = full_results
+        st.session_state["scan_others"] = not_pass
+        st.session_state["scan_meta"] = {"top_n": top_n, "passed": len(passed)}
+
+
+if "scan_full" in st.session_state:
+    results = st.session_state["scan_full"]
+    meta = st.session_state.get("scan_meta", {})
+
+    buys = [r for r in results if r["composite"].action in ("BUY", "STRONG_BUY")]
+    sells = [r for r in results if r["composite"].action in ("SELL", "STRONG_SELL")]
+    others_passed = [r for r in results if r["composite"].action == "HOLD"]
+
+    buys.sort(key=lambda r: r["composite"].total, reverse=True)
+    sells.sort(key=lambda r: r["composite"].total)
+
+    st.markdown(f"### 📊 종합 분석 결과 — 시총 TOP {meta.get('top_n')}")
+    c1, c2, c3, c4 = st.columns(4)
+    for col, (lab, val, cls) in zip(
+        (c1, c2, c3, c4),
+        (("종합 매수 후보", len(buys), "toss-up"),
+         ("종합 매도 후보", len(sells), "toss-down"),
+         ("종합 보류", len(others_passed) + len(st.session_state.get("scan_others", [])), "toss-neutral"),
+         ("1차 통과", meta.get("passed", 0), "")),
+        strict=True,
+    ):
+        with col:
+            st.markdown(
+                f"<div class='toss-card-tight'><p class='toss-label'>{lab}</p>"
+                f"<p class='toss-value-md {cls}'>{val}개</p></div>",
+                unsafe_allow_html=True,
+            )
+
+    if buys:
+        st.markdown(f"#### 🟢 매수 후보 {len(buys)}개")
+        for r in buys:
+            _render_card(r, is_buy=True)
+    if sells:
+        st.markdown(f"#### 🔴 매도 후보 {len(sells)}개")
+        for r in sells:
+            _render_card(r, is_buy=False)
+
+    with st.expander(f"⚪ 종합 보류·미통과 ({len(others_passed)+len(st.session_state.get('scan_others', []))}개)"):
+        rows = []
+        for r in others_passed:
+            rows.append({
+                "종목": f"{r['name']} ({r['code']})",
+                "종합점수": f"{r['composite'].total:+d}",
+                "액션": r["composite"].action,
+            })
+        for r in st.session_state.get("scan_others", []):
+            rows.append({
+                "종목": f"{r['name']} ({r['code']})",
+                "종합점수": "—",
+                "액션": r.get("reason", "—"),
+            })
+        if rows:
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 else:
     st.markdown(
         """
 <div class="toss-card" style="background:#F1F7FF; border-color:#D6E6FF;">
   <p class="toss-value-md" style="color:#1B64DA;">아직 분석 안 했어요</p>
   <p class="toss-sub" style="margin-top:6px;">
-    위 <b>🔄 시장 분석 실행</b> 버튼을 누르면 시가총액 상위 종목을 자동으로
-    훑어 매수·매도 후보를 골라드려요. 상위 10개는 오늘자 뉴스 이슈와 추천 수량도 함께.
+    위 <b>🔄 시장 분석 실행</b> 버튼을 누르면 자동 스캐닝이 시작됩니다.<br/>
+    1단계 — 시총 N개 종목 기술 스크리닝 (빠름)<br/>
+    2단계 — 1차 통과 종목 중 상위 20개에 펀더멘털 + 거시 + 뉴스 LLM 종합 평가
   </p>
 </div>
 """,
@@ -347,32 +421,22 @@ else:
     )
 
 
-# ─── ② 내 관심 종목 ──────────────────────────────────────
+# ─── 관심 종목 ──────────────────────────────────────────
 st.markdown("---")
 st.markdown("### ⭐ 내 관심 종목")
-st.caption("특정 종목만 별도로 추적하고 싶을 때.")
-
 with st.expander("➕ 관심 종목 추가·관리", expanded=False):
     c1, c2 = st.columns([2, 1])
     with c1:
-        q = st.text_input(
-            "종목 이름 또는 코드로 검색",
-            placeholder="예) 삼성전자, 005930, AAPL",
-            key="watch_q",
-        )
+        q = st.text_input("종목 검색", placeholder="삼성전자, 005930, AAPL", key="watch_q")
         if q:
             hits = search_symbols(q, limit=5)
             for h in hits:
-                if st.button(
-                    f"➕ {h.symbol} · {h.name_kr or h.name}",
-                    key=f"add_{h.symbol}",
-                    type="secondary",
-                ):
+                if st.button(f"➕ {h.symbol} · {h.name_kr or h.name}", key=f"add_{h.symbol}", type="secondary"):
                     add(h.symbol)
                     st.success(f"{h.symbol} 추가됨")
                     st.rerun()
     with c2:
-        st.caption(f"현재 관심 종목 {len(list_all())}개")
+        st.caption(f"관심 종목 {len(list_all())}개")
         for s in list_all():
             cc1, cc2 = st.columns([3, 1])
             cc1.write(s)
@@ -383,22 +447,30 @@ with st.expander("➕ 관심 종목 추가·관리", expanded=False):
 
 watched = list_all()
 if watched:
-    if st.button("🔄 관심 종목 다시 계산", type="secondary"):
-        _fetch_one.clear()
+    if st.button("🔄 관심 종목 종합 분석", type="secondary"):
+        _fetch_ohlcv.clear()
 
-    watch_results: list[dict] = []
+    watch_full: list[dict] = []
     prog = st.progress(0.0, text="관심 종목 분석 중...")
+    llm_on = llm_available()
     for i, sym in enumerate(watched, start=1):
         hits = search_symbols(sym, limit=1)
         name = (hits[0].name_kr or hits[0].name) if hits else sym
-        watch_results.append(_evaluate_one(sym, name))
+        r = _technical_only(sym, name)
+        if r.get("ok"):
+            watch_full.append(_comprehensive(r, with_llm=llm_on))
         prog.progress(i / len(watched), text=f"{name} ({i}/{len(watched)})")
     prog.empty()
-    _render_results(watch_results, title="📋 관심 종목 분석", llm_top_n=20)
+
+    for r in watch_full:
+        is_buy = r["composite"].action in ("BUY", "STRONG_BUY")
+        _render_card(r, is_buy=is_buy)
+
 
 st.caption(
-    "📐 10가지 지표 종합 점수 · 📰 Google News RSS (무료) · 🤖 Gemini LLM. "
-    "추천 수량은 가용 현금/보유 수량을 점수 강도(매수 +8↑ 4–10%, 매도 -3↓ 30–100%)에 따라 배분."
+    "📐 4축 종합 점수 — 기술 ±11 / 펀더멘털 ±5 / 거시·섹터 ±3 / 뉴스 ±2 (총 ±21). "
+    "강한 매수 +14↑ · 매수 +10↑ · 매도 -5↓ · 강한 매도 -10↓. "
+    "데이터: FinanceDataReader · Google News RSS · Gemini LLM. 모두 무료."
 )
 
 render_disclaimer()
